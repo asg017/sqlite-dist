@@ -1,0 +1,6 @@
+dist/
+vendor/
+
+*.dylib
+*.dll
+*.so

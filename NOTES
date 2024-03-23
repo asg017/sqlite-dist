@@ -1,0 +1,18 @@
+
+```
+gh release upload \
+  tmp/github_releases/* \
+  tmp/spm/* \
+  tmp/sqlpkg/* \
+  tmp/checksums.txt \
+  tmp/sqlite-dist-manifest.json \
+  tmp/install.sh
+
+npm publish --access public tmp/npm/*
+gem push tmp/gem/*
+python3 -m twine upload
+```
+
+```
+rm -rf tmp/ && mkdir tmp; time cargo run -- sample/sqlite-dist.toml --input sample/dist/ --output tmp && tree --du -h --dirsfirst tmp/
+```

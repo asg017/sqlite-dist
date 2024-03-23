@@ -1,0 +1,20 @@
+[package]
+name = "sqlite-dist"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+base16ct = {version="0.2.0", features=["alloc"]}
+base64 = "0.21.7"
+chrono = "0.4.34"
+clap = "4.5.1"
+flate2 = "1.0.28"
+semver = {version="1.0.22", features = ["serde"]}
+serde = {version="1.0", features = ["derive"]}
+serde_json = "1.0"
+sha2 = "0.10.8"
+tar = "0.4.40"
+thiserror = "1.0.57"
+toml = "0.8.10"
+ureq = "2.9.6"
+zip = "0.6.6"
