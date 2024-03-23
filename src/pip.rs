@@ -291,7 +291,7 @@ pub(crate) fn write_base_packages(
     let mut assets = vec![];
     for platform_dir in platform_dirs {
         let mut pkg = PipPackage::new(&spec.package.name, &spec.package.version);
-        assert_eq!(platform_dir.loadable_files.len(), 1);
+        assert!(platform_dir.loadable_files.len() >= 1);
         let entrypoint = &platform_dir.loadable_files.get(0).expect("TODO").file_stem;
         pkg.write_library_file(
             "__init__.py",

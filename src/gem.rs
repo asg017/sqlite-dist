@@ -245,7 +245,7 @@ pub(crate) fn write_gems(
     let mut assets = vec![];
     for platform_dir in platform_dirs {
         let mut gem = Gem::new();
-        assert_eq!(platform_dir.loadable_files.len(), 1);
+        assert!(platform_dir.loadable_files.len() >= 1);
         let loadable_name = platform_dir.loadable_files[0].file.name.clone();
         let entrypoint = &platform_dir.loadable_files[0].file_stem;
 

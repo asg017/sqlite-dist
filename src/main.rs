@@ -345,6 +345,8 @@ fn build(matches: ArgMatches) -> Result<(), BuildError> {
         .get_one::<PathBuf>("file")
         .ok_or_else(|| BuildError::RequiredArg("file".to_owned()))?;
 
+    std::fs::create_dir_all(output_dir);
+
     let spec: Spec = match toml::from_str(fs::read_to_string(input_file)?.as_str()) {
         Ok(spec) => spec,
         Err(err) => {
@@ -496,6 +498,9 @@ fn main() {
 
     match build(matches) {
         Ok(_) => std::process::exit(0),
-        Err(_) => std::process::exit(1),
+        Err(error) => {
+            eprintln!("Build error: {error}");
+            std::process::exit(1);
+        }
     }
 }
