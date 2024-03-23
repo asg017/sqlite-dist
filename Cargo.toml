@@ -2,6 +2,8 @@
 name = "sqlite-dist"
 version = "0.1.0"
 edition = "2021"
+repository = "https://github.com/asg017/sqlite-dist"
+
 
 [dependencies]
 base16ct = {version="0.2.0", features=["alloc"]}
@@ -27,3 +29,5 @@ lto = "thin"
 cargo-dist-version = "0.11.1"
 installers = []
 targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+ci = ["github"]
+pr-run-mode = "plan"
