@@ -29,9 +29,11 @@ mkdir -p dist/macos-aarch64
 mkdir -p dist/linux-x86_64
 mkdir -p dist/linux-aarch64
 mkdir -p dist/windows-x86_64
+mkdir -p dist/wasm32-emscripten
 
 make TARGET=x86_64-macos   TARGET_LOADABLE=dist/macos-x86_64/sample0.dylib  TARGET_STATIC=dist/macos-x86_64/libsqlite_sample0.a   loadable static
 make TARGET=aarch64-macos  TARGET_LOADABLE=dist/macos-aarch64/sample0.dylib TARGET_STATIC=dist/macos-aarch64/libsqlite_sample0.a  loadable static
 make TARGET=x86_64-linux   TARGET_LOADABLE=dist/linux-x86_64/sample0.so     TARGET_STATIC=dist/linux-x86_64/libsqlite_sample0.a   loadable static
 make TARGET=aarch64-linux  TARGET_LOADABLE=dist/linux-aarch64/sample0.so    TARGET_STATIC=dist/linux-aarch64/libsqlite_sample0.a  loadable static
 make TARGET=x86_64-windows TARGET_LOADABLE=dist/windows-x86_64/sample0.dll  TARGET_STATIC=dist/windows-x86_64/libsqlite_sample0.a loadable static
+touch dist/wasm32-emscripten/sqlite3.mjs dist/wasm32-emscripten/sqlite3.wasm

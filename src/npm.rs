@@ -1,4 +1,8 @@
-use std::{collections::HashMap, io, path::Path};
+use std::{
+    collections::HashMap,
+    fs, io,
+    path::{Path, PathBuf},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -13,11 +17,11 @@ pub struct Repository {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ExportTarget {
     // for CJS, should end in .cjs
-    pub require: String,
+    pub require: Option<String>,
     // for ESM, should end in .mjs
     pub import: String,
     // for TypeScript, .d.ts file?
-    pub types: String,
+    pub types: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -30,11 +34,11 @@ pub struct PackageJson {
     pub repository: Repository,
 
     // CJS file?
-    pub main: String,
+    pub main: Option<String>,
     // ESM file?
     pub module: String,
     // path to .d.ts file
-    pub types: String,
+    pub types: Option<String>,
     pub exports: HashMap<String, ExportTarget>,
     pub files: Option<Vec<String>>,
     pub keywords: Option<Vec<String>>,
@@ -68,6 +72,7 @@ struct NpmPlatformPackage {
 pub(crate) fn write_npm_packages(
     project: &Project,
     npm_ouput_directory: &Path,
+    emscripten_dir: &Option<PathBuf>,
 ) -> Result<Vec<GeneratedAsset>, NpmBuildError> {
     let mut assets = vec![];
     let author = project.spec.package.authors.first().unwrap();
@@ -109,15 +114,15 @@ pub(crate) fn write_npm_packages(
                     url: "https://TODO".to_owned(),
                     directory: None,
                 },
-                main: "./index.cjs".to_owned(),
+                main: Some("./index.cjs".to_owned()),
                 module: "./index.mjs".to_owned(),
-                types: "./index.d.ts".to_owned(),
+                types: Some("./index.d.ts".to_owned()),
                 exports: HashMap::from([(
                     ".".to_owned(),
                     ExportTarget {
-                        require: "./index.cjs".to_owned(),
+                        require: Some("./index.cjs".to_owned()),
                         import: "./index.mjs".to_owned(),
-                        types: "./index.d.ts".to_owned(),
+                        types: Some("./index.d.ts".to_owned()),
                     },
                 )]),
                 files: vec![].into(),
@@ -168,15 +173,15 @@ pub(crate) fn write_npm_packages(
             url: "https://TODO".to_owned(),
             directory: None,
         },
-        main: "./index.cjs".to_owned(),
+        main: Some("./index.cjs".to_owned()),
         module: "./index.mjs".to_owned(),
-        types: "./index.d.ts".to_owned(),
+        types: Some("./index.d.ts".to_owned()),
         exports: HashMap::from([(
             ".".to_owned(),
             ExportTarget {
-                require: "./index.cjs".to_owned(),
+                require: Some("./index.cjs".to_owned()),
                 import: "./index.mjs".to_owned(),
-                types: "./index.d.ts".to_owned(),
+                types: Some("./index.d.ts".to_owned()),
             },
         )]),
         files: vec![].into(),
@@ -217,6 +222,57 @@ pub(crate) fn write_npm_packages(
         ),
         PlatformFile::new("package/index.d.ts", templates::index_dts(), None),
     ];
+    if let Some(emscripten_dir) = emscripten_dir {
+        let wasm_pkg_json = PackageJson {
+            name: format!("{}-wasm-demo", project.spec.package.name),
+            version: project.version.to_string(),
+            author: author.clone(),
+            license: project.spec.package.license.clone(),
+            description: project.spec.package.description.clone(),
+            repository: Repository {
+                repo_type: "git".to_owned(),
+                url: "https://TODO".to_owned(),
+                directory: None,
+            },
+            main: None,
+            module: "./sqlite3.mjs".to_owned(),
+            types: None,
+            exports: HashMap::from([(
+                ".".to_owned(),
+                ExportTarget {
+                    require: None,
+                    import: "./sqlite3.mjs".to_owned(),
+                    types: None,
+                },
+            )]),
+            files: vec![].into(),
+            keywords: vec![].into(),
+            dependencies: None,
+            optional_dependencies: None,
+            dev_dependencies: None,
+            os: None,
+            cpu: None,
+        };
+        let wasm_pkg_targz_files = vec![
+            PlatformFile::new(
+                "package/sqlite3.mjs",
+                fs::read(emscripten_dir.join("sqlite3.mjs"))?,
+                None,
+            ),
+            PlatformFile::new(
+                "package/sqlite3.wasm",
+                fs::read(emscripten_dir.join("sqlite3.wasm"))?,
+                None,
+            ),
+        ];
+        let wasm_pkg_targz =
+            create_targz(&wasm_pkg_targz_files.iter().collect::<Vec<&PlatformFile>>())?;
+        assets.push(GeneratedAsset::from(
+            GeneratedAssetKind::Npm(None),
+            &npm_ouput_directory.join(format!("{}.tar.gz", wasm_pkg_json.name)),
+            &wasm_pkg_targz,
+        )?);
+    }
     let top_pkg_targz = create_targz(&top_pkg_targz_files.iter().collect::<Vec<&PlatformFile>>());
 
     for pkg in pkg_targzs {

@@ -9,7 +9,7 @@ mod spec;
 mod spm;
 mod sqlpkg;
 
-use clap::{value_parser, Arg, ArgMatches, Command};
+use clap::{builder::OsStr, value_parser, Arg, ArgMatches, Command};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use manifest::write_manifest;
@@ -238,7 +238,7 @@ pub enum PlatformDirectoryError {
     InvalidCharacters,
     #[error("directory {0} is not a valid platform directory. The format must be $OS-$CPU.")]
     InvalidDirectoryName(String),
-    #[error("Invalid operation system '{0}'. Must be one of 'macos', 'linux', or 'windows'")]
+    #[error("Invalid operating system '{0}'. Must be one of 'macos', 'linux', or 'windows'")]
     InvalidOsValue(String),
     #[error("Invalid CPU name '{0}'. Must be one of 'x86_64' or 'aarch64'")]
     InvalidCpuValue(String),
@@ -422,16 +422,25 @@ fn build(matches: ArgMatches) -> Result<(), BuildError> {
         ));
     }
 
-    let platform_directories: Result<Vec<PlatformDirectory>, BuildError> = fs::read_dir(input_dir)?
+    let mut entries = fs::read_dir(input_dir)?
         .map(|entry| {
-            PlatformDirectory::from_path(
-                entry
-                    .map_err(|_| {
-                        BuildError::SpecError("Could not read entry in input directory".to_owned())
-                    })?
-                    .path(),
-            )
-            .map_err(BuildError::PlayformDirectoryError)
+            Ok(entry
+                .map_err(|_| {
+                    BuildError::SpecError("Could not read entry in input directory".to_owned())
+                })?
+                .path())
+        })
+        .collect::<Result<Vec<PathBuf>, BuildError>>()?;
+
+    let emscripten_dir = entries
+        .iter()
+        .position(|entry| entry.file_name() == Some(&OsStr::from("wasm32-emscripten")))
+        .map(|item| entries.remove(item));
+    let platform_directories: Result<Vec<PlatformDirectory>, BuildError> = entries
+        .iter()
+        .map(|entry| {
+            PlatformDirectory::from_path(entry.to_owned())
+                .map_err(BuildError::PlayformDirectoryError)
         })
         .collect();
     let platform_directories = platform_directories?;
@@ -492,7 +501,11 @@ fn build(matches: ArgMatches) -> Result<(), BuildError> {
     if project.spec.targets.npm.is_some() {
         let npm_output_directory = output_dir.join("npm");
         std::fs::create_dir(&npm_output_directory)?;
-        generated_assets.extend(npm::write_npm_packages(&project, &npm_output_directory)?);
+        generated_assets.extend(npm::write_npm_packages(
+            &project,
+            &npm_output_directory,
+            &emscripten_dir,
+        )?);
     };
     if let Some(gem_config) = &project.spec.targets.gem {
         let gem_path = output_dir.join("gem");
