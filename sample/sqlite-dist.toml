@@ -1,6 +1,5 @@
 [package]
 name = "sqlite-sample"
-version = "0.0.1-alpha.1"
 license = "MIT OR Apache"
 homepage = "https://alexgarcia.xyz/sqlite-sample"
 repo = "https://github.com/asg017/sqlite-sample"

@@ -47,10 +47,7 @@ pub struct PackageJson {
     pub cpu: Option<Vec<String>>,
 }
 
-use crate::{
-    create_targz, Cpu, GeneratedAsset, GeneratedAssetKind, Os, PlatformDirectory, PlatformFile,
-    Spec,
-};
+use crate::{create_targz, Cpu, GeneratedAsset, GeneratedAssetKind, Os, PlatformFile, Project};
 
 use thiserror::Error;
 
@@ -69,21 +66,22 @@ struct NpmPlatformPackage {
     data: Vec<u8>,
 }
 pub(crate) fn write_npm_packages(
-    spec: &Spec,
-    platform_dirs: &[PlatformDirectory],
+    project: &Project,
     npm_ouput_directory: &Path,
 ) -> Result<Vec<GeneratedAsset>, NpmBuildError> {
     let mut assets = vec![];
-    let author = spec.package.authors.get(0).unwrap();
-    let entrypoint = &platform_dirs
-        .get(0)
+    let author = project.spec.package.authors.first().unwrap();
+    let entrypoint = &project
+        .platform_directories
+        .first()
         .unwrap()
         .loadable_files
-        .get(0)
+        .first()
         .unwrap()
         .file_stem;
 
-    let platform_pkgs: Vec<PackageJson> = platform_dirs
+    let platform_pkgs: Vec<PackageJson> = project
+        .platform_directories
         .iter()
         .map(|platform_dir| {
             let npm_os = match platform_dir.os {
@@ -98,14 +96,14 @@ pub(crate) fn write_npm_packages(
             PackageJson {
                 name: format!(
                     "{pkg}-{os}-{cpu}",
-                    pkg = spec.package.name,
+                    pkg = project.spec.package.name,
                     os = npm_os,
                     cpu = npm_cpu
                 ),
-                version: spec.package.version.to_string(),
+                version: project.version.to_string(),
                 author: author.clone(),
-                license: spec.package.license.clone(),
-                description: spec.package.description.clone(),
+                license: project.spec.package.license.clone(),
+                description: project.spec.package.description.clone(),
                 repository: Repository {
                     repo_type: "git".to_owned(),
                     url: "https://TODO".to_owned(),
@@ -135,16 +133,17 @@ pub(crate) fn write_npm_packages(
 
     let pkg_targzs: Result<Vec<NpmPlatformPackage>, NpmBuildError> = platform_pkgs
         .iter()
-        .zip(platform_dirs)
+        .zip(&project.platform_directories)
         .map(|(pkg, platform_dir)| {
             let mut files = vec![
-                PlatformFile::new("package/README.md", "TODO"),
-                PlatformFile::new("package/package.json", serde_json::to_string(&pkg)?),
+                PlatformFile::new("package/README.md", "TODO", None),
+                PlatformFile::new("package/package.json", serde_json::to_string(&pkg)?, None),
             ];
             for loadable_file in &platform_dir.loadable_files {
                 files.push(PlatformFile::new(
                     format!("package/{}", loadable_file.file.name),
                     loadable_file.file.data.clone(),
+                    loadable_file.file.metadata.clone(),
                 ));
             }
 
@@ -159,11 +158,11 @@ pub(crate) fn write_npm_packages(
     let pkg_targzs = pkg_targzs?;
 
     let top_pkg = PackageJson {
-        name: spec.package.name.clone(),
-        version: spec.package.version.to_string(),
+        name: project.spec.package.name.clone(),
+        version: project.version.to_string(),
         author: author.clone(),
-        license: spec.package.license.clone(),
-        description: spec.package.description.clone(),
+        license: project.spec.package.license.clone(),
+        description: project.spec.package.description.clone(),
         repository: Repository {
             repo_type: "git".to_owned(),
             url: "https://TODO".to_owned(),
@@ -193,23 +192,30 @@ pub(crate) fn write_npm_packages(
         cpu: None,
     };
 
-    let platforms = platform_dirs
+    let platforms = project
+        .platform_directories
         .iter()
         .map(|pd| (pd.os.clone(), pd.cpu.clone()))
         .collect::<Vec<(Os, Cpu)>>();
-    let pkg_name = spec.package.name.clone();
+    let pkg_name = project.spec.package.name.clone();
     let top_pkg_targz_files = vec![
-        PlatformFile::new("package/README.md", "TODO"),
-        PlatformFile::new("package/package.json", serde_json::to_string(&top_pkg)?),
+        PlatformFile::new("package/README.md", "TODO", None),
+        PlatformFile::new(
+            "package/package.json",
+            serde_json::to_string(&top_pkg)?,
+            None,
+        ),
         PlatformFile::new(
             "package/index.mjs",
             templates::index_js(pkg_name.clone(), entrypoint, &platforms, JsFormat::ESM),
+            None,
         ),
         PlatformFile::new(
             "package/index.cjs",
             templates::index_js(pkg_name.clone(), entrypoint, &platforms, JsFormat::CJS),
+            None,
         ),
-        PlatformFile::new("package/index.d.ts", templates::index_dts()),
+        PlatformFile::new("package/index.d.ts", templates::index_dts(), None),
     ];
     let top_pkg_targz = create_targz(&top_pkg_targz_files.iter().collect::<Vec<&PlatformFile>>());
 
@@ -246,9 +252,9 @@ mod templates {
 export declare function getLoadablePath(): string;
 
 
-interface Db {{
+interface Db {
     loadExtension(file: string, entrypoint?: string | undefined): void;
-}}
+}
 
 /**
  * TODO JSDoc
@@ -280,25 +286,25 @@ export declare function load(db: Db): void;
         let imports = match format {
             JsFormat::CJS => {
                 r#"
-const {{ join }} = require("node:path");
-const {{ fileURLToPath }} = require("node:url");
-const {{ arch, platform }} = require("node:process");
-const {{ statSync }} = require("node:fs");
+const { join } = require("node:path");
+const { fileURLToPath } = require("node:url");
+const { arch, platform } = require("node:process");
+const { statSync } = require("node:fs");
 "#
             }
             JsFormat::ESM => {
                 r#"
-import {{ join }} from "node:path";
-import {{ fileURLToPath }} from "node:url";
-import {{ arch, platform }} from "node:process";
-import {{ statSync }} from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { arch, platform } from "node:process";
+import { statSync } from "node:fs";
 "#
             }
         };
 
         let exports = match format {
-            JsFormat::CJS => r#"module.exports = {{getLoadablePath, load}};"#,
-            JsFormat::ESM => r#"export {{getLoadablePath, load}};"#,
+            JsFormat::CJS => r#"module.exports = {getLoadablePath, load};"#,
+            JsFormat::ESM => r#"export {getLoadablePath, load};"#,
         };
 
         format!(

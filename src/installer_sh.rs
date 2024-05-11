@@ -1,7 +1,7 @@
 pub(crate) mod templates {
     use std::collections::HashSet;
 
-    use crate::{spec::Spec, Cpu, GeneratedAsset, GeneratedAssetKind, Os};
+    use crate::{Cpu, GeneratedAsset, GeneratedAssetKind, Os, Project};
 
     struct Case {
         os: Os,
@@ -11,7 +11,7 @@ pub(crate) mod templates {
         checksum: String,
     }
 
-    pub(crate) fn install_sh(spec: &Spec, assets: &[GeneratedAsset]) -> String {
+    pub(crate) fn install_sh(project: &Project, assets: &[GeneratedAsset]) -> String {
         let mut targets = assets
             .iter()
             .filter_map(|asset| match &asset.kind {
@@ -50,7 +50,7 @@ pub(crate) mod templates {
             })
             .collect();
 
-        let usage = part_usage(spec.package.version.to_string().as_str(), &targets);
+        let usage = part_usage(project.version.to_string().as_str(), &targets);
         let current_target = part_current_target();
         let process_arguments = part_process_arguments();
         let main = part_main(cases);

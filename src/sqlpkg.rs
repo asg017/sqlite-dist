@@ -2,17 +2,9 @@ use std::collections::HashMap;
 use std::io::Result;
 use std::path::Path;
 
-use crate::spec::Spec;
-use crate::{GeneratedAsset, GeneratedAssetKind};
+use crate::{GeneratedAsset, GeneratedAssetKind, Project};
 
 use serde::{Deserialize, Serialize};
-
-/*
-#[derive(Debug, Deserialize, Serialize)]
-pub struct AssetPath {
-  value: String,
-  is_rem
-}*/
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Asset {
@@ -37,16 +29,16 @@ pub struct Sqlpkg {
     pub assets: Asset,
 }
 
-pub(crate) fn write_sqlpkg(sqlpkg_dir: &Path, spec: &Spec) -> Result<Vec<GeneratedAsset>> {
+pub(crate) fn write_sqlpkg(project: &Project, sqlpkg_dir: &Path) -> Result<Vec<GeneratedAsset>> {
     let sqlpkg = Sqlpkg {
-        owner: spec.package.authors.join(", "),
-        name: spec.package.name.clone(),
-        version: spec.package.version.to_string(),
-        homepage: spec.package.homepage.clone(),
-        repository: spec.package.repo.clone(),
-        authors: spec.package.authors.clone(),
-        license: spec.package.license.clone(),
-        description: spec.package.description.clone(),
+        owner: project.spec.package.authors.join(", "),
+        name: project.spec.package.name.clone(),
+        version: project.version.to_string(),
+        homepage: project.spec.package.homepage.clone(),
+        repository: project.spec.package.repo.clone(),
+        authors: project.spec.package.authors.clone(),
+        license: project.spec.package.license.clone(),
+        description: project.spec.package.description.clone(),
         keywords: vec![], // TODO keywords in spec?
         symbols: None,
         assets: Asset {

@@ -1,6 +1,6 @@
 use crate::spec::TargetGem;
-use crate::{spec::Spec, Cpu, Os, PlatformDirectory};
-use crate::{GeneratedAsset, GeneratedAssetKind};
+use crate::{Cpu, Os};
+use crate::{GeneratedAsset, GeneratedAssetKind, Project};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use serde::{Deserialize, Serialize};
@@ -177,18 +177,18 @@ impl Gem {
         Ok(())
     }
 
-    fn metadata_gz(&self, os: &Os, cpu: &Cpu, spec: &Spec) -> io::Result<Vec<u8>> {
+    fn metadata_gz(&self, os: &Os, cpu: &Cpu, project: &Project) -> io::Result<Vec<u8>> {
         let metadata = gem_metadata_template(
             os,
             cpu,
-            &spec.package.name,
-            spec.package.version.to_string().as_str(),
+            &project.spec.package.name,
+            project.version.to_string().as_str(),
             self.library_filenames.clone(),
             "TODO",
-            spec.package.authors.clone(),
-            vec![spec.package.license.clone()],
-            &spec.package.description,
-            &spec.package.description,
+            project.spec.package.authors.clone(),
+            vec![project.spec.package.license.clone()],
+            &project.spec.package.description,
+            &project.spec.package.description,
             "https://github.com/TODO",
         );
         let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
@@ -196,13 +196,18 @@ impl Gem {
         encoder.finish()
     }
 
-    pub fn complete(mut self, os: &Os, cpu: &Cpu, spec: &Spec) -> io::Result<(String, Vec<u8>)> {
+    pub fn complete(
+        mut self,
+        os: &Os,
+        cpu: &Cpu,
+        project: &Project,
+    ) -> io::Result<(String, Vec<u8>)> {
         let mut gem_tar: Vec<u8> = Vec::new();
         {
             let mut tar = tar::Builder::new(Cursor::new(&mut gem_tar));
             let mut header = Header::new_gnu();
 
-            let metadata_gz = self.metadata_gz(os, cpu, spec)?;
+            let metadata_gz = self.metadata_gz(os, cpu, project)?;
             header.set_path("metadata.gz")?;
             header.set_size(metadata_gz.len() as u64);
             header.set_cksum();
@@ -226,9 +231,9 @@ impl Gem {
         Ok((
             format!(
                 "{}-{}-{}.gem",
-                spec.package.name,
+                project.spec.package.name,
                 // ?
-                spec.package.version.to_string().replace('-', "."),
+                project.version.to_string().replace('-', "."),
                 ruby_platform(os, cpu)
             ),
             gem_tar,
@@ -237,15 +242,14 @@ impl Gem {
 }
 
 pub(crate) fn write_gems(
+    project: &Project,
     gem_path: &Path,
-    platform_dirs: &[PlatformDirectory],
-    spec: &Spec,
     gem_config: &TargetGem,
 ) -> io::Result<Vec<GeneratedAsset>> {
     let mut assets = vec![];
-    for platform_dir in platform_dirs {
+    for platform_dir in &project.platform_directories {
         let mut gem = Gem::new();
-        assert!(platform_dir.loadable_files.len() >= 1);
+        assert!(!platform_dir.loadable_files.is_empty());
         let loadable_name = platform_dir.loadable_files[0].file.name.clone();
         let entrypoint = &platform_dir.loadable_files[0].file_stem;
 
@@ -255,11 +259,10 @@ pub(crate) fn write_gems(
         )?;
 
         gem.write_library_file(
-            format!("lib/{}.rb", spec.package.name.replace('-', "_")).as_str(),
-            templates::lib_rb(&spec.package.version, entrypoint, &gem_config.module_name)
-                .as_bytes(),
+            format!("lib/{}.rb", project.spec.package.name.replace('-', "_")).as_str(),
+            templates::lib_rb(&project.version, entrypoint, &gem_config.module_name).as_bytes(),
         )?;
-        let (gem_name, data) = gem.complete(&platform_dir.os, &platform_dir.cpu, spec)?;
+        let (gem_name, data) = gem.complete(&platform_dir.os, &platform_dir.cpu, project)?;
         assets.push(GeneratedAsset::from(
             GeneratedAssetKind::Gem((platform_dir.os.clone(), platform_dir.cpu.clone())),
             &gem_path.join(gem_name),

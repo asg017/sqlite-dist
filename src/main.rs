@@ -14,6 +14,7 @@ use flate2::Compression;
 use manifest::write_manifest;
 use npm::NpmBuildError;
 use pip::PipBuildError;
+use semver::Version;
 use serde::{Serialize, Serializer};
 use sha2::{Digest, Sha256};
 use spec::Spec;
@@ -23,6 +24,20 @@ use std::{
     path::PathBuf,
 };
 use tar::Header;
+
+struct Project {
+    version: Version,
+    spec: Spec,
+    platform_directories: Vec<PlatformDirectory>,
+}
+
+impl Project {
+    pub(crate) fn release_download_url(&self, name: &str) -> String {
+        let gh_base = self.spec.package.repo.clone();
+        let tag_version = self.version.to_string();
+        format!("{gh_base}/releases/download/{tag_version}/{name}")
+    }
+}
 
 #[derive(Debug, Clone)]
 struct PlatformDirectory {
@@ -155,6 +170,7 @@ impl GeneratedAsset {
 struct PlatformFile {
     name: String,
     data: Vec<u8>,
+    metadata: Option<std::fs::Metadata>,
 }
 
 #[derive(Debug, Clone)]
@@ -164,10 +180,15 @@ struct LoadablePlatformFile {
 }
 
 impl PlatformFile {
-    fn new<S: Into<String>, D: Into<Vec<u8>>>(name: S, data: D) -> Self {
+    fn new<S: Into<String>, D: Into<Vec<u8>>>(
+        name: S,
+        data: D,
+        metadata: Option<fs::Metadata>,
+    ) -> Self {
         Self {
             name: name.into(),
             data: data.into(),
+            metadata,
         }
     }
 }
@@ -183,6 +204,17 @@ fn create_targz(files: &[&PlatformFile]) -> io::Result<Vec<u8>> {
             let mut header = Header::new_gnu();
             header.set_path(file.name.clone())?;
             header.set_size(file.data.len() as u64);
+            if let Some(metadata) = &file.metadata {
+                header.set_metadata(metadata);
+            } else {
+                header.set_mode(0o700);
+                header.set_mtime(
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
+                );
+            }
             header.set_cksum();
             tar.append::<&[u8]>(&header, file.data.as_ref())?;
         }
@@ -257,6 +289,7 @@ impl PlatformDirectory {
                         .ok_or(PlatformDirectoryError::InvalidCharacters)?
                         .to_string();
                     let data = fs::read(&entry_path)?;
+                    let metadata = Some(fs::metadata(&entry_path)?);
                     let file_stem = entry_path
                         .file_stem()
                         .expect("file_stem to exist because there is an extension")
@@ -268,6 +301,7 @@ impl PlatformDirectory {
                         file: PlatformFile {
                             name: name.to_string(),
                             data,
+                            metadata,
                         },
                     });
                 }
@@ -278,10 +312,12 @@ impl PlatformDirectory {
                         .to_str()
                         .ok_or(PlatformDirectoryError::InvalidCharacters)?
                         .to_string();
-                    let data = fs::read(entry_path)?;
+                    let data = fs::read(&entry_path)?;
+                    let metadata = Some(fs::metadata(&entry_path)?);
                     static_files.push(PlatformFile {
                         name: name.to_string(),
                         data,
+                        metadata,
                     });
                 }
                 Some("h") => {
@@ -291,10 +327,12 @@ impl PlatformDirectory {
                         .to_str()
                         .ok_or(PlatformDirectoryError::InvalidCharacters)?
                         .to_string();
-                    let data = fs::read(entry_path)?;
+                    let data = fs::read(&entry_path)?;
+                    let metadata = Some(fs::metadata(&entry_path)?);
                     header_files.push(PlatformFile {
                         name: name.to_string(),
                         data,
+                        metadata,
                     });
                 }
                 _ => {
@@ -344,8 +382,12 @@ fn build(matches: ArgMatches) -> Result<(), BuildError> {
     let input_file = matches
         .get_one::<PathBuf>("file")
         .ok_or_else(|| BuildError::RequiredArg("file".to_owned()))?;
+    let version = matches
+        .get_one::<String>("version")
+        .ok_or_else(|| BuildError::RequiredArg("version".to_owned()))?;
+    let version = Version::parse(version).unwrap();
 
-    std::fs::create_dir_all(output_dir);
+    std::fs::create_dir_all(output_dir)?;
 
     let spec: Spec = match toml::from_str(fs::read_to_string(input_file)?.as_str()) {
         Ok(spec) => spec,
@@ -376,7 +418,7 @@ fn build(matches: ArgMatches) -> Result<(), BuildError> {
         ));
     }
 
-    let platform_dirs: Result<Vec<PlatformDirectory>, BuildError> = fs::read_dir(input_dir)?
+    let platform_directories: Result<Vec<PlatformDirectory>, BuildError> = fs::read_dir(input_dir)?
         .map(|entry| {
             PlatformDirectory::from_path(
                 entry
@@ -388,61 +430,58 @@ fn build(matches: ArgMatches) -> Result<(), BuildError> {
             .map_err(BuildError::PlayformDirectoryError)
         })
         .collect();
-    let platform_dirs = platform_dirs?;
+    let platform_directories = platform_directories?;
+
+    let project = Project {
+        version,
+        spec,
+        platform_directories,
+    };
 
     let mut generated_assets: Vec<GeneratedAsset> = vec![];
-    if spec.targets.github_releases.is_some() {
+    if project.spec.targets.github_releases.is_some() {
         let path = output_dir.join("github_releases");
         std::fs::create_dir(&path)?;
-        let gh_release_assets = gh_releases::write_platform_files(&path, &platform_dirs, &spec)?;
+        let gh_release_assets = gh_releases::write_platform_files(&project, &path)?;
 
-        if spec.targets.sqlpkg.is_some() {
+        if project.spec.targets.sqlpkg.is_some() {
             let sqlpkg_dir = output_dir.join("sqlpkg");
             std::fs::create_dir(&sqlpkg_dir)?;
-            generated_assets.extend(sqlpkg::write_sqlpkg(&sqlpkg_dir, &spec)?);
+            generated_assets.extend(sqlpkg::write_sqlpkg(&project, &sqlpkg_dir)?);
         };
 
-        if spec.targets.spm.is_some() {
+        if project.spec.targets.spm.is_some() {
             let path = output_dir.join("spm");
             std::fs::create_dir(&path)?;
-            generated_assets.extend(spm::write_spm(&spec, &gh_release_assets, &path)?);
+            generated_assets.extend(spm::write_spm(&project.spec, &gh_release_assets, &path)?);
         };
         generated_assets.extend(gh_release_assets);
     };
 
-    if spec.targets.pip.is_some() {
+    if project.spec.targets.pip.is_some() {
         let pip_path = output_dir.join("pip");
         std::fs::create_dir(&pip_path)?;
-        generated_assets.extend(pip::write_base_packages(&pip_path, &platform_dirs, &spec)?);
-        if spec.targets.datasette.is_some() {
+        generated_assets.extend(pip::write_base_packages(&project, &pip_path)?);
+        if project.spec.targets.datasette.is_some() {
             let datasette_path = output_dir.join("datasette");
             std::fs::create_dir(&datasette_path)?;
-            generated_assets.push(pip::write_datasette(&datasette_path, &spec)?);
+            generated_assets.push(pip::write_datasette(&project, &datasette_path)?);
         }
-        if spec.targets.sqlite_utils.is_some() {
+        if project.spec.targets.sqlite_utils.is_some() {
             let sqlite_utils_path = output_dir.join("sqlite_utils");
             std::fs::create_dir(&sqlite_utils_path)?;
-            generated_assets.push(pip::write_sqlite_utils(&sqlite_utils_path, &spec)?);
+            generated_assets.push(pip::write_sqlite_utils(&project, &sqlite_utils_path)?);
         }
     };
-    if spec.targets.npm.is_some() {
+    if project.spec.targets.npm.is_some() {
         let npm_output_directory = output_dir.join("npm");
         std::fs::create_dir(&npm_output_directory)?;
-        generated_assets.extend(npm::write_npm_packages(
-            &spec,
-            &platform_dirs,
-            &npm_output_directory,
-        )?);
+        generated_assets.extend(npm::write_npm_packages(&project, &npm_output_directory)?);
     };
-    if let Some(gem_config) = &spec.targets.gem {
+    if let Some(gem_config) = &project.spec.targets.gem {
         let gem_path = output_dir.join("gem");
         std::fs::create_dir(&gem_path)?;
-        generated_assets.extend(gem::write_gems(
-            &gem_path,
-            &platform_dirs,
-            &spec,
-            gem_config,
-        )?);
+        generated_assets.extend(gem::write_gems(&project, &gem_path, gem_config)?);
     };
     let github_releases_checksums_txt = generated_assets
         .iter()
@@ -461,7 +500,7 @@ fn build(matches: ArgMatches) -> Result<(), BuildError> {
     File::create(output_dir.join("checksums.txt"))?
         .write_all(github_releases_checksums_txt.as_bytes())?;
     File::create(output_dir.join("install.sh"))?.write_all(
-        crate::installer_sh::templates::install_sh(&spec, &generated_assets).as_bytes(),
+        crate::installer_sh::templates::install_sh(&project, &generated_assets).as_bytes(),
     )?;
     write_manifest(output_dir, &generated_assets)?;
     Ok(())
@@ -487,6 +526,13 @@ fn main() {
                 .value_parser(value_parser!(PathBuf)),
         )
         .arg(
+            Arg::new("version")
+                .long("version")
+                .value_name("VERSION")
+                .help("Set the version ")
+                .required(true),
+        )
+        .arg(
             Arg::new("file")
                 .value_name("FILE")
                 .help("Sets the input file")
@@ -494,6 +540,7 @@ fn main() {
                 .index(1)
                 .value_parser(value_parser!(PathBuf)),
         )
+        .disable_version_flag(true)
         .get_matches();
 
     match build(matches) {

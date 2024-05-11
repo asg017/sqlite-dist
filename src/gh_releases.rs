@@ -1,5 +1,7 @@
-use crate::{create_targz, GeneratedAsset, GeneratedAssetKind, GithubRelease, PlatformFile};
-use crate::{spec::Spec, PlatformDirectory};
+use crate::PlatformDirectory;
+use crate::{
+    create_targz, GeneratedAsset, GeneratedAssetKind, GithubRelease, PlatformFile, Project,
+};
 use std::io;
 use std::path::Path;
 
@@ -38,35 +40,40 @@ fn github_release_artifact_name(
     format!("{name}-{version}-{artifact_type}-{os}-{cpu}.tar.gz")
 }
 
-fn github_release_artifact_name_loadable(spec: &Spec, platform_dir: &PlatformDirectory) -> String {
-    let name = spec.package.name.as_str();
-    let version = spec.package.version.to_string();
+fn github_release_artifact_name_loadable(
+    project: &Project,
+    platform_dir: &PlatformDirectory,
+) -> String {
+    let name = project.spec.package.name.as_str();
+    let version = project.version.to_string();
     let os = platform_dir.os.to_string();
     let cpu = platform_dir.cpu.to_string();
     github_release_artifact_name(name, &version, &os, &cpu, "loadable")
 }
-fn github_release_artifact_name_static(spec: &Spec, platform_dir: &PlatformDirectory) -> String {
-    let name = spec.package.name.as_str();
-    let version = spec.package.version.to_string();
+fn github_release_artifact_name_static(
+    project: &Project,
+    platform_dir: &PlatformDirectory,
+) -> String {
+    let name = project.spec.package.name.as_str();
+    let version = project.version.to_string();
     let os = platform_dir.os.to_string();
     let cpu = platform_dir.cpu.to_string();
     github_release_artifact_name(name, &version, &os, &cpu, "static")
 }
 
 pub(crate) fn write_platform_files(
+    project: &Project,
     ghreleases: &Path,
-    platform_dirs: &[PlatformDirectory],
-    spec: &Spec,
 ) -> Result<Vec<GeneratedAsset>, io::Error> {
     let mut loadable_assets = vec![];
     let mut static_assets = vec![];
 
-    for platform_dir in platform_dirs {
+    for platform_dir in &project.platform_directories {
         let ghl = create_loadable_github_release_asset(platform_dir)?;
-        let lname = github_release_artifact_name_loadable(spec, platform_dir);
+        let lname = github_release_artifact_name_loadable(project, platform_dir);
         loadable_assets.push(GeneratedAsset::from(
             GeneratedAssetKind::GithubReleaseLoadable(GithubRelease {
-                url: spec.release_download_url(&lname),
+                url: project.release_download_url(&lname),
                 platform: (platform_dir.os.clone(), platform_dir.cpu.clone()),
             }),
             &ghreleases.join(lname),
@@ -74,10 +81,10 @@ pub(crate) fn write_platform_files(
         )?);
 
         if let Some(ghs) = create_static_github_release_asset(platform_dir) {
-            let sname = github_release_artifact_name_static(spec, platform_dir);
+            let sname = github_release_artifact_name_static(project, platform_dir);
             static_assets.push(GeneratedAsset::from(
                 GeneratedAssetKind::GithubReleaseStatic(GithubRelease {
-                    url: spec.release_download_url(&sname),
+                    url: project.release_download_url(&sname),
                     platform: (platform_dir.os.clone(), platform_dir.cpu.clone()),
                 }),
                 &ghreleases.join(sname),

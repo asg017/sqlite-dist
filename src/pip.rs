@@ -3,7 +3,7 @@ use std::{
     path::Path,
 };
 
-use crate::{spec::Spec, Cpu, GeneratedAsset, GeneratedAssetKind, Os, PlatformDirectory};
+use crate::{Cpu, GeneratedAsset, GeneratedAssetKind, Os, Project};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use semver::Version;
 use sha2::{Digest, Sha256};
@@ -284,15 +284,14 @@ pub enum PipBuildError {
 }
 
 pub(crate) fn write_base_packages(
+    project: &Project,
     pip_path: &Path,
-    platform_dirs: &[PlatformDirectory],
-    spec: &Spec,
 ) -> Result<Vec<GeneratedAsset>, PipBuildError> {
     let mut assets = vec![];
-    for platform_dir in platform_dirs {
-        let mut pkg = PipPackage::new(&spec.package.name, &spec.package.version);
-        assert!(platform_dir.loadable_files.len() >= 1);
-        let entrypoint = &platform_dir.loadable_files.get(0).expect("TODO").file_stem;
+    for platform_dir in &project.platform_directories {
+        let mut pkg = PipPackage::new(&project.spec.package.name, &project.version);
+        assert!(!platform_dir.loadable_files.is_empty());
+        let entrypoint = &platform_dir.loadable_files.first().expect("TODO").file_stem;
         pkg.write_library_file(
             "__init__.py",
             templates::base_init_py(&pkg, entrypoint).as_bytes(),
@@ -315,11 +314,11 @@ pub(crate) fn write_base_packages(
 }
 
 pub(crate) fn write_datasette(
+    project: &Project,
     datasette_path: &Path,
-    spec: &Spec,
 ) -> Result<GeneratedAsset, PipBuildError> {
-    let datasette_package_name = format!("datasette-{}", spec.package.name);
-    let mut pkg = PipPackage::new(datasette_package_name, &spec.package.version);
+    let datasette_package_name = format!("datasette-{}", project.spec.package.name);
+    let mut pkg = PipPackage::new(datasette_package_name, &project.version);
     pkg.write_library_file("__init__.py", templates::datasette_init_py(&pkg).as_bytes())?;
 
     let wheel_name = pkg.wheel_name(None);
@@ -332,11 +331,11 @@ pub(crate) fn write_datasette(
 }
 
 pub(crate) fn write_sqlite_utils(
+    project: &Project,
     sqlite_utils_path: &Path,
-    spec: &Spec,
 ) -> Result<GeneratedAsset, PipBuildError> {
-    let sqlite_utils_name = format!("sqlite-utils-{}", spec.package.name);
-    let mut pkg = PipPackage::new(sqlite_utils_name, &spec.package.version);
+    let sqlite_utils_name = format!("sqlite-utils-{}", project.spec.package.name);
+    let mut pkg = PipPackage::new(sqlite_utils_name, &project.version);
     pkg.write_library_file(
         "__init__.py",
         templates::sqlite_utils_init_py(&pkg).as_bytes(),
