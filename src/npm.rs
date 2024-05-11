@@ -17,10 +17,12 @@ pub struct Repository {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ExportTarget {
     // for CJS, should end in .cjs
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub require: Option<String>,
     // for ESM, should end in .mjs
     pub import: String,
     // for TypeScript, .d.ts file?
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub types: Option<String>,
 }
 
@@ -34,20 +36,37 @@ pub struct PackageJson {
     pub repository: Repository,
 
     // CJS file?
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub main: Option<String>,
     // ESM file?
     pub module: String,
     // path to .d.ts file
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub types: Option<String>,
+
     pub exports: HashMap<String, ExportTarget>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub files: Option<Vec<String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keywords: Option<Vec<String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub dependencies: Option<HashMap<String, String>>,
+
     #[serde(rename = "optionalDependencies")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub optional_dependencies: Option<HashMap<String, String>>,
+
     #[serde(rename = "devDependencies")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub dev_dependencies: Option<HashMap<String, String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub os: Option<Vec<String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cpu: Option<Vec<String>>,
 }
 
