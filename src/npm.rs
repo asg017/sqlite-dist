@@ -254,6 +254,12 @@ pub(crate) fn write_npm_packages(
             cpu: None,
         };
         let wasm_pkg_targz_files = vec![
+            PlatformFile::new("package/README.md", "TODO", None),
+            PlatformFile::new(
+                "package/package.json",
+                serde_json::to_string(&wasm_pkg_json)?,
+                None,
+            ),
             PlatformFile::new(
                 "package/sqlite3.mjs",
                 fs::read(emscripten_dir.join("sqlite3.mjs"))?,
