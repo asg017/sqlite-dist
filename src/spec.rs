@@ -32,6 +32,10 @@ pub struct TargetNpm {}
 pub struct TargetGem {
     pub module_name: String,
 }
+#[derive(Deserialize)]
+pub struct TargetAmalgamation {
+    pub include: Vec<String>,
+}
 
 #[derive(Deserialize)]
 pub struct Targets {
@@ -43,6 +47,7 @@ pub struct Targets {
     pub sqlite_utils: Option<TargetSqliteUtils>,
     pub npm: Option<TargetNpm>,
     pub gem: Option<TargetGem>,
+    pub amalgamation: Option<TargetAmalgamation>,
 }
 #[derive(Deserialize)]
 pub struct Spec {

@@ -1,3 +1,4 @@
+mod amalgamation;
 mod gem;
 mod gh_releases;
 mod installer_sh;
@@ -28,6 +29,7 @@ use tar::Header;
 struct Project {
     version: Version,
     spec: Spec,
+    spec_directory: PathBuf,
     platform_directories: Vec<PlatformDirectory>,
 }
 
@@ -116,6 +118,7 @@ enum GeneratedAssetKind {
     GithubReleaseStatic(GithubRelease),
     Sqlpkg,
     Spm,
+    Amalgamation,
     Manifest,
 }
 
@@ -131,6 +134,7 @@ impl ToString for GeneratedAssetKind {
             GeneratedAssetKind::GithubReleaseStatic(_) => "github-release-static".to_owned(),
             GeneratedAssetKind::Sqlpkg => "sqlpkg".to_owned(),
             GeneratedAssetKind::Spm => "spm".to_owned(),
+            GeneratedAssetKind::Amalgamation => "amalgamation".to_owned(),
             GeneratedAssetKind::Manifest => "sqlite-dist-manifest".to_owned(),
         }
     }
@@ -435,6 +439,7 @@ fn build(matches: ArgMatches) -> Result<(), BuildError> {
     let project = Project {
         version,
         spec,
+        spec_directory: input_file.parent().unwrap().to_path_buf(),
         platform_directories,
     };
 
@@ -455,6 +460,17 @@ fn build(matches: ArgMatches) -> Result<(), BuildError> {
             std::fs::create_dir(&path)?;
             generated_assets.extend(spm::write_spm(&project.spec, &gh_release_assets, &path)?);
         };
+
+        if let Some(amalgamation_config) = &project.spec.targets.amalgamation {
+            let amalgamation_path = output_dir.join("amalgamation");
+            std::fs::create_dir(&amalgamation_path)?;
+            generated_assets.extend(amalgamation::write_amalgamation(
+                &project,
+                &amalgamation_path,
+                amalgamation_config,
+            )?);
+        };
+
         generated_assets.extend(gh_release_assets);
     };
 
@@ -483,6 +499,7 @@ fn build(matches: ArgMatches) -> Result<(), BuildError> {
         std::fs::create_dir(&gem_path)?;
         generated_assets.extend(gem::write_gems(&project, &gem_path, gem_config)?);
     };
+
     let github_releases_checksums_txt = generated_assets
         .iter()
         .filter(|ga| {

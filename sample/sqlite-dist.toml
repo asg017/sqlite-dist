@@ -10,6 +10,7 @@ authors = ["Alex Garcia"]
 github_releases = {}
 sqlpkg = {}
 spm = {}
+amalgamation = {include=["sqlite-sample.c", "sqlite-sample.h"]}
 
 pip = {}
 datasette = {}
