@@ -1,3 +1,4 @@
+use semver::Version;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -8,6 +9,17 @@ pub struct SpecPackage {
     pub description: String,
     pub homepage: String,
     pub repo: String,
+    pub git_tag_format: Option<String>,
+}
+
+impl SpecPackage {
+    pub(crate) fn git_tag(&self, version: &Version) -> String {
+        self.git_tag_format
+            .as_ref()
+            .map_or(version.to_string(), |f| {
+                f.replace("$VERSION", &version.to_string())
+            })
+    }
 }
 
 #[derive(Deserialize)]

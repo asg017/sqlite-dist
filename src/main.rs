@@ -36,8 +36,10 @@ struct Project {
 impl Project {
     pub(crate) fn release_download_url(&self, name: &str) -> String {
         let gh_base = self.spec.package.repo.clone();
-        let tag_version = self.version.to_string();
-        format!("{gh_base}/releases/download/{tag_version}/{name}")
+        format!(
+            "{gh_base}/releases/download/{}/{name}",
+            self.spec.package.git_tag(&self.version)
+        )
     }
 }
 
