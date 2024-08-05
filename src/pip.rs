@@ -30,6 +30,16 @@ TODO readme"
         )
     }
 
+    pub(crate) fn dist_info_entrypoints(entrypoints: &Vec<(String, String)>) -> String {
+        let mut txt = String::new();
+        for (key, value) in entrypoints {
+            txt += format!("[{key}]\n").as_str();
+            txt += value;
+            txt += "\n\n";
+        }
+
+        txt
+    }
     pub(crate) fn dist_info_wheel(platform: Option<(&Os, &Cpu)>) -> String {
         let name = env!("CARGO_PKG_NAME");
         let version = env!("CARGO_PKG_VERSION");
@@ -86,9 +96,9 @@ def load(conn: sqlite3.Connection)  -> None:
         )
     }
 
-    pub(crate) fn sqlite_utils_init_py(pkg: &PipPackage) -> String {
-        let dep_library = pkg.python_package_name.clone();
-        let version = pkg.package_version.clone();
+    pub(crate) fn sqlite_utils_init_py(dep_pkg: &PipPackage) -> String {
+        let dep_library = dep_pkg.python_package_name.clone();
+        let version = dep_pkg.package_version.clone();
         format!(
             r#"
 from sqlite_utils import hookimpl
@@ -106,9 +116,9 @@ def prepare_connection(conn):
         )
     }
 
-    pub(crate) fn datasette_init_py(pkg: &PipPackage) -> String {
-        let dep_library = pkg.python_package_name.clone();
-        let version = pkg.package_version.clone();
+    pub(crate) fn datasette_init_py(dep_pkg: &PipPackage) -> String {
+        let dep_library = dep_pkg.python_package_name.clone();
+        let version = dep_pkg.package_version.clone();
         format!(
             r#"
 from datasette import hookimpl
@@ -193,6 +203,8 @@ pub struct PipPackage {
     // not semver, but the special pip version string (ex 1.2a3)
     pub package_version: String,
     pub written_files: Vec<PipPackageFile>,
+
+    pub entrypoints: Vec<(String, String)>,
 }
 
 impl PipPackage {
@@ -206,7 +218,12 @@ impl PipPackage {
             python_package_name: package_name.replace('-', "_"),
             package_version: semver_to_pip_version(package_version),
             written_files: vec![],
+            entrypoints: vec![],
         }
+    }
+
+    pub fn add_entrypoint(&mut self, key: &str, value: &str) {
+        self.entrypoints.push((key.to_owned(), value.to_owned()));
     }
 
     pub fn wheel_name(&self, platform: Option<(&Os, &Cpu)>) -> String {
@@ -269,10 +286,19 @@ impl PipPackage {
             templates::dist_info_wheel(platform).as_bytes(),
         )
     }
+    fn write_dist_info_entrypoints(&mut self) -> Result<(), ZipError> {
+        self.write_file(
+            self.dist_info_file("entry_points.txt").as_str(),
+            templates::dist_info_entrypoints(&self.entrypoints).as_bytes(),
+        )
+    }
 
     pub fn end(mut self, platform: Option<(&Os, &Cpu)>) -> Result<Cursor<Vec<u8>>, ZipError> {
         self.write_dist_info_metadata()?;
         self.write_dist_info_wheel(platform)?;
+        if !self.entrypoints.is_empty() {
+            self.write_dist_info_entrypoints()?;
+        }
         self.write_dist_info_top_level_txt()?;
         self.write_dist_info_record()?;
         self.zipfile.finish()
@@ -332,8 +358,21 @@ pub(crate) fn write_datasette(
     datasette_path: &Path,
 ) -> Result<GeneratedAsset, PipBuildError> {
     let datasette_package_name = format!("datasette-{}", project.spec.package.name);
-    let mut pkg = PipPackage::new(datasette_package_name, &project.version);
-    pkg.write_library_file("__init__.py", templates::datasette_init_py(&pkg).as_bytes())?;
+    let dep_pkg = PipPackage::new(&project.spec.package.name, &project.version);
+    let mut pkg = PipPackage::new(datasette_package_name.clone(), &project.version);
+    pkg.write_library_file(
+        "__init__.py",
+        templates::datasette_init_py(&dep_pkg).as_bytes(),
+    )?;
+
+    pkg.add_entrypoint(
+        "datasette",
+        format!(
+            "{} = {}",
+            dep_pkg.python_package_name, pkg.python_package_name
+        )
+        .as_str(),
+    );
 
     let wheel_name = pkg.wheel_name(None);
     let result = pkg.end(None)?.into_inner();
@@ -349,11 +388,21 @@ pub(crate) fn write_sqlite_utils(
     sqlite_utils_path: &Path,
 ) -> Result<GeneratedAsset, PipBuildError> {
     let sqlite_utils_name = format!("sqlite-utils-{}", project.spec.package.name);
-    let mut pkg = PipPackage::new(sqlite_utils_name, &project.version);
+    let dep_pkg = PipPackage::new(&project.spec.package.name, &project.version);
+    let mut pkg = PipPackage::new(sqlite_utils_name.clone(), &project.version);
     pkg.write_library_file(
         "__init__.py",
-        templates::sqlite_utils_init_py(&pkg).as_bytes(),
+        templates::sqlite_utils_init_py(&dep_pkg).as_bytes(),
     )?;
+
+    pkg.add_entrypoint(
+        "sqlite_utils",
+        format!(
+            "{} = {}",
+            dep_pkg.python_package_name, pkg.python_package_name
+        )
+        .as_str(),
+    );
 
     let wheel_name = pkg.wheel_name(None);
 
