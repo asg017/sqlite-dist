@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     io::{self, Cursor, Write},
     path::Path,
 };
@@ -17,6 +18,15 @@ mod templates {
     pub(crate) fn dist_info_metadata(pkg: &PipPackage) -> String {
         let name = &pkg.package_name;
         let version = &pkg.package_version;
+        let extra_metadata: String = if pkg.extra_metadata.len() > 1 {
+            let mut s = String::new();
+            for (key, value) in &pkg.extra_metadata {
+                s += format!("{key}: {value}\n").as_str();
+            }
+            s
+        } else {
+            "".to_owned()
+        };
         format!(
             "Metadata-Version: 2.1
 Name: {name}
@@ -25,6 +35,7 @@ Home-page: https://TODO.com
 Author: TODO
 License: MIT License, Apache License, Version 2.0
 Description-Content-Type: text/markdown
+{extra_metadata}
 
 TODO readme"
         )
@@ -205,6 +216,7 @@ pub struct PipPackage {
     pub written_files: Vec<PipPackageFile>,
 
     pub entrypoints: Vec<(String, String)>,
+    pub extra_metadata: Vec<(String, String)>,
 }
 
 impl PipPackage {
@@ -219,6 +231,7 @@ impl PipPackage {
             package_version: semver_to_pip_version(package_version),
             written_files: vec![],
             entrypoints: vec![],
+            extra_metadata: vec![],
         }
     }
 
@@ -373,6 +386,12 @@ pub(crate) fn write_datasette(
         )
         .as_str(),
     );
+    pkg.extra_metadata
+        .push(("Requires-Dist".to_owned(), "datasette".to_owned()));
+    pkg.extra_metadata.push((
+        "Requires-Dist".to_owned(),
+        format!("{} (=={})", &project.spec.package.name, &project.version),
+    ));
 
     let wheel_name = pkg.wheel_name(None);
     let result = pkg.end(None)?.into_inner();
@@ -403,6 +422,13 @@ pub(crate) fn write_sqlite_utils(
         )
         .as_str(),
     );
+
+    pkg.extra_metadata
+        .push(("Requires-Dist".to_owned(), "sqlite-utils".to_owned()));
+    pkg.extra_metadata.push((
+        "Requires-Dist".to_owned(),
+        format!("{} (=={})", &project.spec.package.name, &project.version),
+    ));
 
     let wheel_name = pkg.wheel_name(None);
 
