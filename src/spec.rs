@@ -32,7 +32,9 @@ pub struct TargetSpm {}
 #[derive(Deserialize)]
 pub struct TargetDatasette {}
 #[derive(Deserialize)]
-pub struct TargetPip {}
+pub struct TargetPip {
+    pub(crate) extra_init_py: Option<String>,
+}
 
 #[derive(Deserialize)]
 pub struct TargetSqliteUtils {}

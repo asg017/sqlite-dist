@@ -62,20 +62,26 @@ Tag: {tag}",
     }
     pub(crate) fn base_init_py(pkg: &PipPackage, entrypoint: &str) -> String {
         let version = &pkg.package_version;
+        let package_name = &pkg.package_name;
         format!(
             r#"
-import os
+from os import path
 import sqlite3
 
 __version__ = "{version}"
 __version_info__ = tuple(__version__.split("."))
 
 def loadable_path():
-  loadable_path = os.path.join(os.path.dirname(__file__), "{entrypoint}")
-  return os.path.normpath(loadable_path)
+  """ Returns the full path to the {package_name} loadable SQLite extension bundled with this package """
+
+  loadable_path = path.join(path.dirname(__file__), "{entrypoint}")
+  return path.normpath(loadable_path)
 
 def load(conn: sqlite3.Connection)  -> None:
+  """ Load the {package_name} SQLite extension into the given database connection. """
+
   conn.load_extension(loadable_path())
+
 "#,
         )
     }
@@ -292,10 +298,18 @@ pub(crate) fn write_base_packages(
         let mut pkg = PipPackage::new(&project.spec.package.name, &project.version);
         assert!(!platform_dir.loadable_files.is_empty());
         let entrypoint = &platform_dir.loadable_files.first().expect("TODO").file_stem;
-        pkg.write_library_file(
-            "__init__.py",
-            templates::base_init_py(&pkg, entrypoint).as_bytes(),
-        )?;
+        let mut init_py = templates::base_init_py(&pkg, entrypoint);
+        if let Some(extra_init_py) = project
+            .spec
+            .targets
+            .pip
+            .as_ref()
+            .and_then(|pip| pip.extra_init_py.as_deref())
+        {
+            let contents = std::fs::read_to_string(project.spec_directory.join(extra_init_py))?;
+            init_py += &contents;
+        }
+        pkg.write_library_file("__init__.py", init_py.as_bytes())?;
 
         for f in &platform_dir.loadable_files {
             pkg.write_library_file(f.file.name.as_str(), &f.file.data)?;

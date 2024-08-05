@@ -80,7 +80,7 @@ main "$@"
     }
 
     fn part_usage(version: &str, targets: &str) -> String {
-        // TODO: build commit, build date
+        // TODO: build commit, build date, project name NOT hello
         format!(
             r#"
 usage() {{

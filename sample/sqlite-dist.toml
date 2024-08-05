@@ -12,7 +12,7 @@ sqlpkg = {}
 spm = {}
 amalgamation = {include=["sqlite-sample.c", "sqlite-sample.h"]}
 
-pip = {}
+pip = { extra_init_py = "extra_init.py" }
 datasette = {}
 sqlite_utils = {}
 
