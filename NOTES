@@ -1,4 +1,3 @@
-
 ```
 gh release upload \
   tmp/github_releases/* \
@@ -14,5 +13,5 @@ python3 -m twine upload
 ```
 
 ```
-rm -rf tmp/ && mkdir tmp; time cargo run -- sample/sqlite-dist.toml --input sample/dist/ --output tmp && tree --du -h --dirsfirst tmp/
+rm -rf tmp/ && mkdir tmp; time cargo run -- sample/sqlite-dist.toml --input sample/dist/ --output tmp --version 0.0.1 && tree --du -h --dirsfirst tmp/
 ```
