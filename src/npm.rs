@@ -387,6 +387,10 @@ import { statSync } from "node:fs";
             JsFormat::CJS => r#"module.exports = {getLoadablePath, load};"#,
             JsFormat::ESM => r#"export {getLoadablePath, load};"#,
         };
+        let current_directory = match format {
+            JsFormat::CJS => r#"__dirname"#,
+            JsFormat::ESM => r#"fileURLToPath(new URL(".", import.meta.url))"#,
+        };
 
         format!(
             r#"
@@ -425,7 +429,7 @@ function getLoadablePath() {{
   }}
   const packageName = platformPackageName(platform, arch);
   const loadablePath = join(
-    fileURLToPath(new URL(".", import.meta.url)),
+    {current_directory},
     "..",
     packageName,
     `${{ENTRYPOINT_BASE_NAME}}.${{extensionSuffix(platform)}}`
