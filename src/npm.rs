@@ -389,7 +389,8 @@ import { statSync } from "node:fs";
         };
         let current_directory = match format {
             JsFormat::CJS => r#"__dirname"#,
-            JsFormat::ESM => r#"fileURLToPath(new URL(".", import.meta.url))"#,
+            // the "join()" is needed because webpack likes to re-write this sometimes??? unbelievable
+            JsFormat::ESM => r#"fileURLToPath(new URL(join("."), import.meta.url))"#,
         };
 
         format!(
