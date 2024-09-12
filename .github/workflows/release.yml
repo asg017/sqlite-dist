@@ -40,7 +40,7 @@ permissions:
 on:
   push:
     tags:
-      - '**[0-9]+.[0-9]+.[0-9]+*'
+      - "**[0-9]+.[0-9]+.[0-9]+*"
   pull_request:
 
 jobs:
@@ -262,5 +262,5 @@ jobs:
           tag: ${{ needs.plan.outputs.tag }}
           name: ${{ fromJson(needs.host.outputs.val).announcement_title }}
           body: ${{ fromJson(needs.host.outputs.val).announcement_github_body }}
-          prerelease: ${{ fromJson(needs.host.outputs.val).announcement_is_prerelease }}
+          prerelease: true
           artifacts: "artifacts/*"
