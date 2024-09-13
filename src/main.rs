@@ -58,6 +58,9 @@ enum Os {
     Macos,
     Linux,
     Windows,
+    Android,
+    Ios,
+    IosSimulator,
 }
 
 impl Serialize for Os {
@@ -75,6 +78,9 @@ impl ToString for Os {
             Os::Macos => "macos".to_owned(),
             Os::Linux => "linux".to_owned(),
             Os::Windows => "windows".to_owned(),
+            Os::Android => "android".to_owned(),
+            Os::Ios => "ios".to_owned(),
+            Os::IosSimulator => "iossimulator".to_owned(),
         }
     }
 }
@@ -83,6 +89,8 @@ impl ToString for Os {
 enum Cpu {
     X86_64,
     Aarch64,
+    I686,
+    Armv7a,
 }
 
 impl Serialize for Cpu {
@@ -99,6 +107,8 @@ impl ToString for Cpu {
         match self {
             Cpu::X86_64 => "x86_64".to_owned(),
             Cpu::Aarch64 => "aarch64".to_owned(),
+            Cpu::I686 => "i686".to_owned(),
+            Cpu::Armv7a => "armv7a".to_owned(),
         }
     }
 }
@@ -267,6 +277,9 @@ impl PlatformDirectory {
             "macos" => Os::Macos,
             "linux" => Os::Linux,
             "windows" => Os::Windows,
+            "android" => Os::Android,
+            "ios" => Os::Ios,
+            "iossimulator" => Os::IosSimulator,
             os => return Err(PlatformDirectoryError::InvalidOsValue(os.to_owned())),
         };
         let cpu = match s
@@ -275,6 +288,8 @@ impl PlatformDirectory {
         {
             "x86_64" => Cpu::X86_64,
             "aarch64" => Cpu::Aarch64,
+            "i686" => Cpu::I686,
+            "armv7a" => Cpu::Armv7a,
             cpu => return Err(PlatformDirectoryError::InvalidCpuValue(cpu.to_owned())),
         };
         if s.next().is_some() {

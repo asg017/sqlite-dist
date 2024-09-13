@@ -107,15 +107,27 @@ pub(crate) fn write_npm_packages(
     let platform_pkgs: Vec<PackageJson> = project
         .platform_directories
         .iter()
+        .filter(|platform_dir| {
+            matches!(platform_dir.os, Os::Linux | Os::Macos | Os::Windows)
+                && matches!(platform_dir.cpu, Cpu::X86_64 | Cpu::Aarch64)
+        })
         .map(|platform_dir| {
             let npm_os = match platform_dir.os {
                 Os::Linux => "linux",
                 Os::Macos => "darwin",
                 Os::Windows => "windows",
+                _ => unreachable!(
+                    "Invalid npm OS {:?}, should be filtered from above.",
+                    platform_dir.os
+                ),
             };
             let npm_cpu = match platform_dir.cpu {
                 Cpu::X86_64 => "x64",
                 Cpu::Aarch64 => "arm64",
+                _ => unreachable!(
+                    "Invalid npm CPU {:?} should be filtered from above.",
+                    platform_dir.cpu
+                ),
             };
             PackageJson {
                 name: format!(

@@ -200,7 +200,12 @@ pub fn platform_target_tag(os: &Os, cpu: &Cpu) -> String {
         }
         (Os::Linux, Cpu::Aarch64) => "manylinux_2_17_aarch64.manylinux2014_aarch64.whl".to_owned(),
         (Os::Windows, Cpu::X86_64) => "win_amd64".to_owned(),
-        (Os::Windows, Cpu::Aarch64) => todo!(),
+        _ => {
+            unreachable!(
+                "Invalid pip platform {:?}-{:?} provided, should have been filtered out",
+                os, cpu
+            )
+        }
     }
 }
 
@@ -334,6 +339,17 @@ pub(crate) fn write_base_packages(
 ) -> Result<Vec<GeneratedAsset>, PipBuildError> {
     let mut assets = vec![];
     for platform_dir in &project.platform_directories {
+        // only a subset of platforms are supported in pip
+        match (&platform_dir.os, &platform_dir.cpu) {
+            (Os::Macos, Cpu::X86_64)
+            | (Os::Macos, Cpu::Aarch64)
+            | (Os::Linux, Cpu::X86_64)
+            | (Os::Linux, Cpu::Aarch64)
+            | (Os::Windows, Cpu::X86_64) => (),
+            //(Os::Linux, Cpu::Aarch64) => todo!(),
+            //(Os::Windows, Cpu::Aarch64) => todo!(),
+            _ => continue,
+        }
         let mut pkg = PipPackage::new(&project.spec.package.name, &project.version);
         assert!(!platform_dir.loadable_files.is_empty());
         let entrypoint = &platform_dir.loadable_files.first().expect("TODO").file_stem;

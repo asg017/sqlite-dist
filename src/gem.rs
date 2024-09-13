@@ -53,10 +53,18 @@ fn ruby_platform(os: &Os, cpu: &Cpu) -> String {
         Os::Macos => "darwin",
         Os::Linux => "linux",
         Os::Windows => "mingw32",
+        _ => unreachable!(
+            "Invalid gem OS {:?}  provided, should have been filtered out",
+            os,
+        ),
     };
     let cpu = match cpu {
         Cpu::X86_64 => "x86_64",
         Cpu::Aarch64 => "arm64",
+        _ => unreachable!(
+            "Invalid gem CPU {:?}  provided, should have been filtered out",
+            cpu
+        ),
     };
     format!("{cpu}-{os}")
 }
@@ -248,6 +256,11 @@ pub(crate) fn write_gems(
 ) -> io::Result<Vec<GeneratedAsset>> {
     let mut assets = vec![];
     for platform_dir in &project.platform_directories {
+        if !(matches!(platform_dir.os, Os::Linux | Os::Macos | Os::Windows)
+            && matches!(platform_dir.cpu, Cpu::X86_64 | Cpu::Aarch64))
+        {
+            continue;
+        }
         let mut gem = Gem::new();
         assert!(!platform_dir.loadable_files.is_empty());
         let loadable_name = platform_dir.loadable_files[0].file.name.clone();
