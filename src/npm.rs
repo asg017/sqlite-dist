@@ -70,7 +70,10 @@ pub struct PackageJson {
     pub cpu: Option<Vec<String>>,
 }
 
-use crate::{create_targz, Cpu, GeneratedAsset, GeneratedAssetKind, Os, PlatformFile, Project};
+use crate::{
+    create_targz, Cpu, GeneratedAsset, GeneratedAssetKind, Os, PlatformDirectory, PlatformFile,
+    Project,
+};
 
 use thiserror::Error;
 
@@ -95,8 +98,15 @@ pub(crate) fn write_npm_packages(
 ) -> Result<Vec<GeneratedAsset>, NpmBuildError> {
     let mut assets = vec![];
     let author = project.spec.package.authors.first().unwrap();
-    let entrypoint = &project
+    let npm_platform_directories: Vec<&PlatformDirectory> = project
         .platform_directories
+        .iter()
+        .filter(|platform_dir| {
+            matches!(platform_dir.os, Os::Linux | Os::Macos | Os::Windows)
+                && matches!(platform_dir.cpu, Cpu::X86_64 | Cpu::Aarch64)
+        })
+        .collect();
+    let entrypoint = &npm_platform_directories
         .first()
         .unwrap()
         .loadable_files
@@ -104,13 +114,8 @@ pub(crate) fn write_npm_packages(
         .unwrap()
         .file_stem;
 
-    let platform_pkgs: Vec<PackageJson> = project
-        .platform_directories
+    let platform_pkgs: Vec<PackageJson> = npm_platform_directories
         .iter()
-        .filter(|platform_dir| {
-            matches!(platform_dir.os, Os::Linux | Os::Macos | Os::Windows)
-                && matches!(platform_dir.cpu, Cpu::X86_64 | Cpu::Aarch64)
-        })
         .map(|platform_dir| {
             let npm_os = match platform_dir.os {
                 Os::Linux => "linux",
@@ -169,7 +174,7 @@ pub(crate) fn write_npm_packages(
 
     let pkg_targzs: Result<Vec<NpmPlatformPackage>, NpmBuildError> = platform_pkgs
         .iter()
-        .zip(&project.platform_directories)
+        .zip(&npm_platform_directories)
         .map(|(pkg, platform_dir)| {
             let mut files = vec![
                 PlatformFile::new("package/README.md", "TODO", None),
@@ -228,8 +233,7 @@ pub(crate) fn write_npm_packages(
         cpu: None,
     };
 
-    let platforms = project
-        .platform_directories
+    let platforms = npm_platform_directories
         .iter()
         .map(|pd| (pd.os.clone(), pd.cpu.clone()))
         .collect::<Vec<(Os, Cpu)>>();
