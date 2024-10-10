@@ -120,7 +120,7 @@ pub(crate) fn write_npm_packages(
             let npm_os = match platform_dir.os {
                 Os::Linux => "linux",
                 Os::Macos => "darwin",
-                Os::Windows => "windows",
+                Os::Windows => "win32",
                 _ => unreachable!(
                     "Invalid npm OS {:?}, should be filtered from above.",
                     platform_dir.os
