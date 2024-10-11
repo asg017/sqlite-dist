@@ -126,6 +126,15 @@ pub(crate) fn write_npm_packages(
                     platform_dir.os
                 ),
             };
+            let npm_pkg_os_name = match platform_dir.os {
+                Os::Linux => "linux",
+                Os::Macos => "darwin",
+                Os::Windows => "windows",
+                _ => unreachable!(
+                    "Invalid npm OS {:?}, should be filtered from above.",
+                    platform_dir.os
+                ),
+            };
             let npm_cpu = match platform_dir.cpu {
                 Cpu::X86_64 => "x64",
                 Cpu::Aarch64 => "arm64",
@@ -138,7 +147,7 @@ pub(crate) fn write_npm_packages(
                 name: format!(
                     "{pkg}-{os}-{cpu}",
                     pkg = project.spec.package.name,
-                    os = npm_os,
+                    os = npm_pkg_os_name,
                     cpu = npm_cpu
                 ),
                 version: project.version.to_string(),
