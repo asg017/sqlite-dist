@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use crate::{Cpu, GeneratedAsset, GeneratedAssetKind, Os, Project};
+use crate::{AssetPipWheel, Cpu, GeneratedAsset, GeneratedAssetKind, Os, Project};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use semver::Version;
 use sha2::{Digest, Sha256};
@@ -198,7 +198,7 @@ pub fn platform_target_tag(os: &Os, cpu: &Cpu) -> String {
         (Os::Linux, Cpu::X86_64) => {
             "manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux1_x86_64".to_owned()
         }
-        (Os::Linux, Cpu::Aarch64) => "manylinux_2_17_aarch64.manylinux2014_aarch64.whl".to_owned(),
+        (Os::Linux, Cpu::Aarch64) => "manylinux_2_17_aarch64.manylinux2014_aarch64".to_owned(),
         (Os::Windows, Cpu::X86_64) => "win_amd64".to_owned(),
         _ => {
             unreachable!(
@@ -374,7 +374,10 @@ pub(crate) fn write_base_packages(
         let result = pkg.end(platform)?.into_inner();
         let wheel_path = pip_path.join(wheel_name);
         assets.push(GeneratedAsset::from(
-            GeneratedAssetKind::Pip((platform_dir.os.clone(), platform_dir.cpu.clone())),
+            GeneratedAssetKind::Pip(AssetPipWheel::Standard((
+                platform_dir.os.clone(),
+                platform_dir.cpu.clone(),
+            ))),
             &wheel_path,
             &result,
         )?);

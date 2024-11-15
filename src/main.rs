@@ -120,10 +120,16 @@ struct GithubRelease {
 }
 
 #[derive(Debug, Clone)]
+enum AssetPipWheel {
+    Standard((Os, Cpu)),
+    Pyodide,
+}
+
+#[derive(Debug, Clone)]
 enum GeneratedAssetKind {
     Npm(Option<(Os, Cpu)>),
     Gem((Os, Cpu)),
-    Pip((Os, Cpu)),
+    Pip(AssetPipWheel),
     Datasette,
     SqliteUtils,
     GithubReleaseLoadable(GithubRelease),
@@ -453,6 +459,12 @@ fn build(matches: ArgMatches) -> Result<(), BuildError> {
         .iter()
         .position(|entry| entry.file_name() == Some(&OsStr::from("wasm32-emscripten")))
         .map(|item| entries.remove(item));
+
+    let pyodide_dir = entries
+        .iter()
+        .position(|entry| entry.file_name() == Some(&OsStr::from("pyodide")))
+        .map(|item| entries.remove(item));
+
     let platform_directories: Result<Vec<PlatformDirectory>, BuildError> = entries
         .iter()
         .map(|entry| {
