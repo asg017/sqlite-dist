@@ -300,6 +300,9 @@ module {module_name}
   def self.load(db)
     db.load_extension(self.loadable_path)
   end
+  class << self
+    alias_method :to_path, :loadable_path
+  end
 end
 
 "#
