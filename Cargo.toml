@@ -25,13 +25,6 @@ zip = "0.6.6"
 inherits = "release"
 lto = "thin"
 
-[workspace.metadata.dist]
-cargo-dist-version = "0.11.1"
-installers = []
-targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu"]
-ci = ["github"]
-pr-run-mode = "plan"
-
 [dev-dependencies]
 insta = { version = "1.41.1", features = ["yaml"] }
 insta-cmd = "0.6.0"
