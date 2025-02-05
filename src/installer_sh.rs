@@ -50,7 +50,7 @@ pub(crate) mod templates {
             })
             .collect();
 
-        let usage = part_usage(project.version.to_string().as_str(), &targets);
+        let usage = part_usage(&project.spec.package.name, project.version.to_string().as_str(), &targets);
         let current_target = part_current_target();
         let process_arguments = part_process_arguments();
         let main = part_main(cases);
@@ -79,16 +79,16 @@ main "$@"
         )
     }
 
-    fn part_usage(version: &str, targets: &str) -> String {
+    fn part_usage(project_name: &str, version: &str, targets: &str) -> String {
         // TODO: build commit, build date, project name NOT hello
         format!(
             r#"
 usage() {{
     cat <<EOF
-sqlite-hello-install {version}
+{project_name}-install {version}
 
 USAGE:
-    $0 [static|loadable] [--target=target] [--prefix=path]
+    $0 [static|loadable] [--target=target] [--prefix=path] [--output=path]
 
 OPTIONS:
     --target
@@ -96,6 +96,9 @@ OPTIONS:
 
     --prefix
             Specify a different directory to save the binaries. Defaults to the current working directory.
+        
+    --output
+            Specify a specific file to save the extension to. Defaults to NULL. Cannot be used with --prefix.
 EOF
 }}
 
@@ -130,10 +133,13 @@ process_arguments() {
               exit 0
               ;;
           --target=*)
-              target="\${1#*=}"
+              target="${1#*=}"
               ;;
           --prefix=*)
-              prefix="\${1#*=}"
+              prefix="${1#*=}"
+              ;;
+          --output=*)
+              output="${1#*=}"
               ;;
           static|loadable)
               type="$1"
@@ -189,12 +195,14 @@ main() {{
     local prefix=""
     local url=""
     local checksum=""
+    local output=""
 
     process_arguments "$@"
 
     echo "${{BOLD}}Type${{RESET}}: $type"
     echo "${{BOLD}}Target${{RESET}}: $target"
     echo "${{BOLD}}Prefix${{RESET}}: $prefix"
+    echo "${{BOLD}}Output${{RESET}}: $output"
 
     case "$target-$type" in
 {cases}
@@ -214,7 +222,7 @@ main() {{
 
     curl --fail --location --progress-bar --output "$tmpfile" "$url"
 
-    if ! echo "$checksum $tmpfile" | sha256sum --check --status; then
+    if ! echo "$checksum  $tmpfile" | shasum -a 256 --check --status; then
       echo "Checksum fail!"  1>&2
       rm $tmpfile
       exit 1
@@ -224,7 +232,11 @@ main() {{
       unzip "$tmpfile" -d $prefix
       rm $tmpfile
     else
-      tar -xzf "$tmpfile" -C $prefix
+      if [ -z "$output" ]; then
+        tar -xzf "$tmpfile" -C $prefix
+      else
+        tar -xOzf "$tmpfile" > $output
+      fi
       rm $tmpfile
     fi
 
