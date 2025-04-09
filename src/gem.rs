@@ -75,7 +75,7 @@ fn gem_metadata_template(
     name: &str,
     version: &str,
     files: Vec<String>,
-    email: &str,
+    emails: Vec<String>,
     authors: Vec<String>,
     licenses: Vec<String>,
     description: &str,
@@ -85,6 +85,7 @@ fn gem_metadata_template(
     let ruby_platform = ruby_platform(os, cpu);
     let date = chrono::offset::Local::now().format("%Y-%m-%d").to_string();
     let authors = gem_metadata_list_helper(authors);
+    let emails = gem_metadata_list_helper(emails);
     let files = gem_metadata_list_helper(files);
     let licenses = gem_metadata_list_helper(licenses);
 
@@ -106,7 +107,7 @@ dependencies: []
 description: '{description}'
 summary: '{summary}'
 email:
-- {email}
+{emails}
 executables: []
 extensions: []
 extra_rdoc_files: []
@@ -192,12 +193,12 @@ impl Gem {
             &project.spec.package.name,
             project.version.to_string().as_str(),
             self.library_filenames.clone(),
-            "TODO",
+            project.spec.package.emails.clone(),
             project.spec.package.authors.clone(),
             vec![project.spec.package.license.clone()],
             &project.spec.package.description,
             &project.spec.package.description,
-            "https://github.com/TODO",
+            &project.spec.package.repo,
         );
         let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
         encoder.write_all(metadata.as_bytes())?;
