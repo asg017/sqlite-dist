@@ -1,10 +1,11 @@
 use semver::Version;
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct SpecPackage {
     pub name: String,
     pub authors: Vec<String>,
+    pub emails: Vec<String>,
     pub license: String,
     pub description: String,
     pub homepage: String,

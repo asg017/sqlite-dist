@@ -1,10 +1,11 @@
 use std::{
-    collections::HashMap,
     io::{self, Cursor, Write},
     path::Path,
 };
 
-use crate::{AssetPipWheel, Cpu, GeneratedAsset, GeneratedAssetKind, Os, Project};
+use crate::{
+    spec::SpecPackage, AssetPipWheel, Cpu, GeneratedAsset, GeneratedAssetKind, Os, Project,
+};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use semver::Version;
 use sha2::{Digest, Sha256};
@@ -18,6 +19,10 @@ mod templates {
     pub(crate) fn dist_info_metadata(pkg: &PipPackage) -> String {
         let name = &pkg.package_name;
         let version = &pkg.package_version;
+        let homepage = &pkg.spec.homepage;
+        let authors = pkg.spec.authors.join(", ");
+        let license = &pkg.spec.license;
+        let readme = pkg.spec.description.clone();
         let extra_metadata: String = if pkg.extra_metadata.len() > 1 {
             let mut s = String::new();
             for (key, value) in &pkg.extra_metadata {
@@ -31,13 +36,13 @@ mod templates {
             "Metadata-Version: 2.1
 Name: {name}
 Version: {version}
-Home-page: https://TODO.com
-Author: TODO
-License: MIT License, Apache License, Version 2.0
+Home-page: {homepage}
+Author: {authors}
+License: {license}
 Description-Content-Type: text/markdown
 {extra_metadata}
 
-TODO readme"
+{readme}"
         )
     }
 
@@ -200,6 +205,7 @@ pub fn platform_target_tag(os: &Os, cpu: &Cpu) -> String {
         }
         (Os::Linux, Cpu::Aarch64) => "manylinux_2_17_aarch64.manylinux2014_aarch64".to_owned(),
         (Os::Windows, Cpu::X86_64) => "win_amd64".to_owned(),
+        (Os::Windows, Cpu::Aarch64) => "win_arm64".to_owned(),
         _ => {
             unreachable!(
                 "Invalid pip platform {:?}-{:?} provided, should have been filtered out",
@@ -222,10 +228,16 @@ pub struct PipPackage {
 
     pub entrypoints: Vec<(String, String)>,
     pub extra_metadata: Vec<(String, String)>,
+
+    pub spec: SpecPackage,
 }
 
 impl PipPackage {
-    pub fn new<S: Into<String>>(package_name: S, package_version: &Version) -> Self {
+    pub fn new<S: Into<String>>(
+        package_name: S,
+        package_version: &Version,
+        spec: SpecPackage,
+    ) -> Self {
         let buffer = Cursor::new(Vec::new());
         let zipfile = zip::ZipWriter::new(buffer);
         let package_name = package_name.into();
@@ -237,6 +249,7 @@ impl PipPackage {
             written_files: vec![],
             entrypoints: vec![],
             extra_metadata: vec![],
+            spec,
         }
     }
 
@@ -345,12 +358,15 @@ pub(crate) fn write_base_packages(
             | (Os::Macos, Cpu::Aarch64)
             | (Os::Linux, Cpu::X86_64)
             | (Os::Linux, Cpu::Aarch64)
-            | (Os::Windows, Cpu::X86_64) => (),
-            //(Os::Linux, Cpu::Aarch64) => todo!(),
-            //(Os::Windows, Cpu::Aarch64) => todo!(),
+            | (Os::Windows, Cpu::X86_64)
+            | (Os::Windows, Cpu::Aarch64) => (),
             _ => continue,
         }
-        let mut pkg = PipPackage::new(&project.spec.package.name, &project.version);
+        let mut pkg = PipPackage::new(
+            &project.spec.package.name,
+            &project.version,
+            project.spec.package.clone(),
+        );
         assert!(!platform_dir.loadable_files.is_empty());
         let entrypoint = &platform_dir.loadable_files.first().expect("TODO").file_stem;
         let mut init_py = templates::base_init_py(&pkg, entrypoint);
@@ -390,8 +406,16 @@ pub(crate) fn write_datasette(
     datasette_path: &Path,
 ) -> Result<GeneratedAsset, PipBuildError> {
     let datasette_package_name = format!("datasette-{}", project.spec.package.name);
-    let dep_pkg = PipPackage::new(&project.spec.package.name, &project.version);
-    let mut pkg = PipPackage::new(datasette_package_name.clone(), &project.version);
+    let dep_pkg = PipPackage::new(
+        &project.spec.package.name,
+        &project.version,
+        project.spec.package.clone(),
+    );
+    let mut pkg = PipPackage::new(
+        datasette_package_name.clone(),
+        &project.version,
+        project.spec.package.clone(),
+    );
     pkg.write_library_file(
         "__init__.py",
         templates::datasette_init_py(&dep_pkg).as_bytes(),
@@ -426,8 +450,16 @@ pub(crate) fn write_sqlite_utils(
     sqlite_utils_path: &Path,
 ) -> Result<GeneratedAsset, PipBuildError> {
     let sqlite_utils_name = format!("sqlite-utils-{}", project.spec.package.name);
-    let dep_pkg = PipPackage::new(&project.spec.package.name, &project.version);
-    let mut pkg = PipPackage::new(sqlite_utils_name.clone(), &project.version);
+    let dep_pkg = PipPackage::new(
+        &project.spec.package.name,
+        &project.version,
+        project.spec.package.clone(),
+    );
+    let mut pkg = PipPackage::new(
+        sqlite_utils_name.clone(),
+        &project.version,
+        project.spec.package.clone(),
+    );
     pkg.write_library_file(
         "__init__.py",
         templates::sqlite_utils_init_py(&dep_pkg).as_bytes(),

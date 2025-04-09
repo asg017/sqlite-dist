@@ -156,7 +156,7 @@ pub(crate) fn write_npm_packages(
                 description: project.spec.package.description.clone(),
                 repository: Repository {
                     repo_type: "git".to_owned(),
-                    url: "https://TODO".to_owned(),
+                    url: project.spec.package.repo.to_owned(),
                     directory: None,
                 },
                 main: Some("./index.cjs".to_owned()),
@@ -181,12 +181,14 @@ pub(crate) fn write_npm_packages(
         })
         .collect();
 
+    let readme = project.spec.package.description.clone();
+
     let pkg_targzs: Result<Vec<NpmPlatformPackage>, NpmBuildError> = platform_pkgs
         .iter()
         .zip(&npm_platform_directories)
         .map(|(pkg, platform_dir)| {
             let mut files = vec![
-                PlatformFile::new("package/README.md", "TODO", None),
+                PlatformFile::new("package/README.md", readme.as_str(), None),
                 PlatformFile::new("package/package.json", serde_json::to_string(&pkg)?, None),
             ];
             for loadable_file in &platform_dir.loadable_files {
@@ -215,7 +217,7 @@ pub(crate) fn write_npm_packages(
         description: project.spec.package.description.clone(),
         repository: Repository {
             repo_type: "git".to_owned(),
-            url: "https://TODO".to_owned(),
+            url: project.spec.package.repo.to_owned(),
             directory: None,
         },
         main: Some("./index.cjs".to_owned()),
@@ -248,7 +250,7 @@ pub(crate) fn write_npm_packages(
         .collect::<Vec<(Os, Cpu)>>();
     let pkg_name = project.spec.package.name.clone();
     let top_pkg_targz_files = vec![
-        PlatformFile::new("package/README.md", "TODO", None),
+        PlatformFile::new("package/README.md", readme.as_str(), None),
         PlatformFile::new(
             "package/package.json",
             serde_json::to_string(&top_pkg)?,
@@ -275,7 +277,7 @@ pub(crate) fn write_npm_packages(
             description: project.spec.package.description.clone(),
             repository: Repository {
                 repo_type: "git".to_owned(),
-                url: "https://TODO".to_owned(),
+                url: project.spec.package.repo.to_owned(),
                 directory: None,
             },
             main: None,
@@ -298,7 +300,7 @@ pub(crate) fn write_npm_packages(
             cpu: None,
         };
         let wasm_pkg_targz_files = vec![
-            PlatformFile::new("package/README.md", "TODO", None),
+            PlatformFile::new("package/README.md", readme.as_str(), None),
             PlatformFile::new(
                 "package/package.json",
                 serde_json::to_string(&wasm_pkg_json)?,
@@ -352,18 +354,21 @@ mod templates {
     pub(crate) fn index_dts() -> String {
         r#"
 
-/**
- * TODO JSDoc
- */
-export declare function getLoadablePath(): string;
-
-
 interface Db {
     loadExtension(file: string, entrypoint?: string | undefined): void;
 }
 
 /**
- * TODO JSDoc
+ * Retrieves the filesystem path to the loadable SQLite extension.
+ *
+ * @returns The absolute path to the SQLite loadable extension file.
+ */
+export declare function getLoadablePath(): string;
+
+/**
+ * Loads the SQLite extension into the given database connection.
+ *
+ * @param db - The database connection object.
  */
 export declare function load(db: Db): void;
 
