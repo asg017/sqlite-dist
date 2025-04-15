@@ -4,6 +4,7 @@ mod gh_releases;
 mod installer_sh;
 mod manifest;
 mod npm;
+mod nuget;
 mod pip;
 mod spec;
 mod spm;
@@ -138,6 +139,7 @@ enum GeneratedAssetKind {
     Spm,
     Amalgamation,
     Manifest,
+    Nuget,
 }
 
 impl ToString for GeneratedAssetKind {
@@ -154,6 +156,7 @@ impl ToString for GeneratedAssetKind {
             GeneratedAssetKind::Spm => "spm".to_owned(),
             GeneratedAssetKind::Amalgamation => "amalgamation".to_owned(),
             GeneratedAssetKind::Manifest => "sqlite-dist-manifest".to_owned(),
+            GeneratedAssetKind::Nuget => "nuget".to_owned(),
         }
     }
 }
@@ -541,6 +544,14 @@ fn build(matches: ArgMatches) -> Result<(), BuildError> {
         std::fs::create_dir(&gem_path)?;
         generated_assets.extend(gem::write_gems(&project, &gem_path, gem_config)?);
     };
+    if project.spec.targets.nuget.is_some() {
+        let nuget_output_directory = output_dir.join("nuget");
+        std::fs::create_dir(&nuget_output_directory)?;
+        generated_assets.extend(nuget::write_nuget_packages(
+            &project,
+            &nuget_output_directory,
+        )?);
+    }
 
     let github_releases_checksums_txt = generated_assets
         .iter()

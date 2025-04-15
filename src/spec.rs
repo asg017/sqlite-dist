@@ -52,6 +52,11 @@ pub struct TargetAmalgamation {
 }
 
 #[derive(Deserialize)]
+pub struct TargetNuget {
+    pub friendly_name: String,
+}
+
+#[derive(Deserialize)]
 pub struct Targets {
     pub github_releases: Option<TargetGithubRelease>,
     pub sqlpkg: Option<TargetSqlpkg>,
@@ -62,6 +67,7 @@ pub struct Targets {
     pub npm: Option<TargetNpm>,
     pub gem: Option<TargetGem>,
     pub amalgamation: Option<TargetAmalgamation>,
+    pub nuget: Option<TargetNuget>,
 }
 #[derive(Deserialize)]
 pub struct Spec {
