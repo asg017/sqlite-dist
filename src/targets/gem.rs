@@ -1,6 +1,6 @@
 use crate::spec::TargetGem;
-use crate::{Cpu, Os};
-use crate::{GeneratedAsset, GeneratedAssetKind, Project};
+use crate::build::{Cpu, Os};
+use crate::build::{GeneratedAsset, GeneratedAssetKind, Project};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use serde::{Deserialize, Serialize};

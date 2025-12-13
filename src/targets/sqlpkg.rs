@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::Result;
 use std::path::Path;
 
-use crate::{GeneratedAsset, GeneratedAssetKind, Project};
+use crate::build::{GeneratedAsset, GeneratedAssetKind, Project};
 
 use serde::{Deserialize, Serialize};
 

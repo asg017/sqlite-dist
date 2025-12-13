@@ -3,14 +3,14 @@ use std::{
     path::Path,
 };
 
-use crate::{AssetPipWheel, Cpu, GeneratedAsset, GeneratedAssetKind, Os, Project};
+use crate::build::{AssetPipWheel, Cpu, GeneratedAsset, GeneratedAssetKind, Os, Project};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use semver::Version;
 use sha2::{Digest, Sha256};
 use zip::{result::ZipError, write::FileOptions, ZipWriter};
 
 mod templates {
-    use crate::{targets::pip::platform_target_tag, Cpu, Os};
+    use crate::{targets::pip::platform_target_tag, build::Cpu, build::Os};
 
     use super::PipPackage;
 

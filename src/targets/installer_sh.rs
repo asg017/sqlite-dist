@@ -1,7 +1,7 @@
 pub(crate) mod templates {
     use std::collections::HashSet;
 
-    use crate::{Cpu, GeneratedAsset, GeneratedAssetKind, Os, Project};
+    use crate::build::{Cpu, GeneratedAsset, GeneratedAssetKind, Os, Project};
 
     struct Case {
         os: Os,

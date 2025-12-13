@@ -4,7 +4,7 @@ use std::path::Path;
 use zip::write::FileOptions;
 
 use crate::spec::TargetAmalgamation;
-use crate::{create_targz, GeneratedAsset, GeneratedAssetKind, PlatformFile, Project};
+use crate::build::{create_targz, GeneratedAsset, GeneratedAssetKind, PlatformFile, Project};
 
 pub(crate) fn write_amalgamation(
     project: &Project,

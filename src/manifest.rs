@@ -1,4 +1,4 @@
-use crate::{GeneratedAsset, GeneratedAssetKind};
+use crate::build::{GeneratedAsset, GeneratedAssetKind};
 use serde::{Deserialize, Serialize};
 use std::io::Result;
 use std::path::Path;

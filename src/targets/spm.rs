@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use crate::spec::Spec;
-use crate::{Cpu, GeneratedAsset, GeneratedAssetKind, Os};
+use crate::build::{Cpu, GeneratedAsset, GeneratedAssetKind, Os};
 
 #[derive(Debug, Serialize)]
 pub struct PlatformAsset {

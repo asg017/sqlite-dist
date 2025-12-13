@@ -1,5 +1,5 @@
-use crate::PlatformDirectory;
-use crate::{
+use crate::build::PlatformDirectory;
+use crate::build::{
     create_targz, GeneratedAsset, GeneratedAssetKind, GithubRelease, PlatformFile, Project,
 };
 use std::io;

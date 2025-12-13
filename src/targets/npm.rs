@@ -70,7 +70,7 @@ pub struct PackageJson {
     pub cpu: Option<Vec<String>>,
 }
 
-use crate::{
+use crate::build::{
     create_targz, Cpu, GeneratedAsset, GeneratedAssetKind, Os, PlatformDirectory, PlatformFile,
     Project,
 };
@@ -346,7 +346,7 @@ enum JsFormat {
     ESM,
 }
 mod templates {
-    use crate::{Cpu, Os};
+    use crate::build::{Cpu, Os};
 
     use super::JsFormat;
     pub(crate) fn index_dts() -> String {
