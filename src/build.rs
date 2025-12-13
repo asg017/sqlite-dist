@@ -3,8 +3,7 @@ use crate::targets::{gh_releases, pip, npm, gem, sqlpkg, spm, amalgamation, inst
 use clap::builder::OsStr;
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use crate::manifest::write_manifest;
-use crate::targets::{npm::NpmBuildError, pip::PipBuildError};
+use crate::targets::{npm::NpmBuildError, pip::PipBuildError, manifest::write_manifest};
 use semver::Version;
 use serde::{Serialize, Serializer};
 use sha2::{Digest, Sha256};

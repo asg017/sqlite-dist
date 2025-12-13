@@ -6,3 +6,4 @@ pub mod spm;
 pub mod gh_releases;
 pub mod amalgamation;
 pub mod installer_sh;
+pub mod manifest;

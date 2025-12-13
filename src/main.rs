@@ -1,6 +1,5 @@
 pub(crate) mod targets;
 pub(crate) mod cli;
-pub(crate) mod manifest;
 pub(crate) mod spec;
 pub(crate) mod build;
 
