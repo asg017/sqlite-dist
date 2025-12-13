@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "site/**"
+      - "docs/**"
       - ".github/**"
 jobs:
   deploy:
@@ -21,14 +21,14 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           cache: npm
-          cache-dependency-path: site/package-lock.json
+          cache-dependency-path: docs/package-lock.json
       - run: npm ci
-        working-directory: site/
+        working-directory: docs/
       - run: npm run build
-        working-directory: site/
+        working-directory: docs/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site/.vitepress/dist
+          path: docs/.vitepress/dist
       - id: deployment
         uses: actions/deploy-pages@v4
