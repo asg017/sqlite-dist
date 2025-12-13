@@ -1,22 +1,13 @@
-mod amalgamation;
+mod targets;
 mod cli;
-mod gem;
-mod gh_releases;
-mod installer_sh;
 mod manifest;
-mod npm;
-mod pip;
 mod spec;
-mod spm;
-mod sqlpkg;
-
 use cli::Args;
 use clap::builder::OsStr;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use manifest::write_manifest;
-use npm::NpmBuildError;
-use pip::PipBuildError;
+use targets::{npm::NpmBuildError, pip::PipBuildError};
 use semver::Version;
 use serde::{Serialize, Serializer};
 use sha2::{Digest, Sha256};
@@ -409,7 +400,7 @@ fn build(args: Args) -> Result<(), BuildError> {
         .output
         .ok_or_else(|| BuildError::RequiredArg("output".to_owned()))?;
     let input_file = &args.file;
-    let version = Version::parse(&args.version).unwrap();
+    let version = Version::parse(&args.set_version).unwrap();
 
     std::fs::create_dir_all(&output_dir)?;
 
@@ -482,24 +473,24 @@ fn build(args: Args) -> Result<(), BuildError> {
     if project.spec.targets.github_releases.is_some() {
         let path = output_dir.join("github_releases");
         std::fs::create_dir(&path)?;
-        let gh_release_assets = gh_releases::write_platform_files(&project, &path)?;
+        let gh_release_assets = targets::gh_releases::write_platform_files(&project, &path)?;
 
         if project.spec.targets.sqlpkg.is_some() {
             let sqlpkg_dir = output_dir.join("sqlpkg");
             std::fs::create_dir(&sqlpkg_dir)?;
-            generated_assets.extend(sqlpkg::write_sqlpkg(&project, &sqlpkg_dir)?);
+            generated_assets.extend(targets::sqlpkg::write_sqlpkg(&project, &sqlpkg_dir)?);
         };
 
         if project.spec.targets.spm.is_some() {
             let path = output_dir.join("spm");
             std::fs::create_dir(&path)?;
-            generated_assets.extend(spm::write_spm(&project.spec, &gh_release_assets, &path)?);
+            generated_assets.extend(targets::spm::write_spm(&project.spec, &gh_release_assets, &path)?);
         };
 
         if let Some(amalgamation_config) = &project.spec.targets.amalgamation {
             let amalgamation_path = output_dir.join("amalgamation");
             std::fs::create_dir(&amalgamation_path)?;
-            generated_assets.extend(amalgamation::write_amalgamation(
+            generated_assets.extend(targets::amalgamation::write_amalgamation(
                 &project,
                 &amalgamation_path,
                 amalgamation_config,
@@ -512,22 +503,22 @@ fn build(args: Args) -> Result<(), BuildError> {
     if project.spec.targets.pip.is_some() {
         let pip_path = output_dir.join("pip");
         std::fs::create_dir(&pip_path)?;
-        generated_assets.extend(pip::write_base_packages(&project, &pip_path)?);
+        generated_assets.extend(targets::pip::write_base_packages(&project, &pip_path)?);
         if project.spec.targets.datasette.is_some() {
             let datasette_path = output_dir.join("datasette");
             std::fs::create_dir(&datasette_path)?;
-            generated_assets.push(pip::write_datasette(&project, &datasette_path)?);
+            generated_assets.push(targets::pip::write_datasette(&project, &datasette_path)?);
         }
         if project.spec.targets.sqlite_utils.is_some() {
             let sqlite_utils_path = output_dir.join("sqlite_utils");
             std::fs::create_dir(&sqlite_utils_path)?;
-            generated_assets.push(pip::write_sqlite_utils(&project, &sqlite_utils_path)?);
+            generated_assets.push(targets::pip::write_sqlite_utils(&project, &sqlite_utils_path)?);
         }
     };
     if project.spec.targets.npm.is_some() {
         let npm_output_directory = output_dir.join("npm");
         std::fs::create_dir(&npm_output_directory)?;
-        generated_assets.extend(npm::write_npm_packages(
+        generated_assets.extend(targets::npm::write_npm_packages(
             &project,
             &npm_output_directory,
             &emscripten_dir,
@@ -536,7 +527,7 @@ fn build(args: Args) -> Result<(), BuildError> {
     if let Some(gem_config) = &project.spec.targets.gem {
         let gem_path = output_dir.join("gem");
         std::fs::create_dir(&gem_path)?;
-        generated_assets.extend(gem::write_gems(&project, &gem_path, gem_config)?);
+        generated_assets.extend(targets::gem::write_gems(&project, &gem_path, gem_config)?);
     };
 
     let github_releases_checksums_txt = generated_assets
@@ -556,7 +547,7 @@ fn build(args: Args) -> Result<(), BuildError> {
     File::create(output_dir.join("checksums.txt"))?
         .write_all(github_releases_checksums_txt.as_bytes())?;
     File::create(output_dir.join("install.sh"))?.write_all(
-        crate::installer_sh::templates::install_sh(&project, &generated_assets).as_bytes(),
+        targets::installer_sh::templates::install_sh(&project, &generated_assets).as_bytes(),
     )?;
     write_manifest(&output_dir, &generated_assets)?;
     Ok(())

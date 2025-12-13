@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     io::{self, Cursor, Write},
     path::Path,
 };
@@ -11,7 +10,7 @@ use sha2::{Digest, Sha256};
 use zip::{result::ZipError, write::FileOptions, ZipWriter};
 
 mod templates {
-    use crate::{pip::platform_target_tag, Cpu, Os};
+    use crate::{targets::pip::platform_target_tag, Cpu, Os};
 
     use super::PipPackage;
 

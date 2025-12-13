@@ -23,7 +23,7 @@ pub struct Args {
 
     /// Set the version
     #[arg(long, value_name = "VERSION", required = true)]
-    pub version: String,
+    pub set_version: String,
 }
 
 impl Args {
