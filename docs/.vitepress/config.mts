@@ -4,6 +4,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: "sqlite-dist",
   description: "A tool for distributing SQLite extensions through npm, pip, gem, Github, andmore!",
+  base: '/sqlite-dist/',
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
