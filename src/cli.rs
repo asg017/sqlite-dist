@@ -9,6 +9,20 @@ use std::path::PathBuf;
     about = "Package and distribute pre-compiled SQLite extensions"
 )]
 pub struct Args {
+    #[command(subcommand)]
+    pub command: Command,
+}
+
+#[derive(Parser, Debug)]
+pub enum Command {
+    /// Build SQLite distribution packages
+    Build(BuildCommand),
+    /// Publish distribution packages
+    Publish(PublishCommand),
+}
+
+#[derive(Parser, Debug)]
+pub struct BuildCommand {
     /// Sets the input file
     #[arg(value_name = "FILE")]
     pub file: PathBuf,
@@ -24,6 +38,11 @@ pub struct Args {
     /// Set the version
     #[arg(long, value_name = "VERSION", required = true)]
     pub set_version: String,
+}
+
+#[derive(Parser, Debug)]
+pub struct PublishCommand {
+    // Placeholder for publish-specific flags
 }
 
 impl Args {

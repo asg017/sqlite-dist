@@ -1,4 +1,4 @@
-use crate::cli::Args;
+use crate::cli::BuildCommand;
 use crate::targets::{gh_releases, pip, npm, gem, sqlpkg, spm, amalgamation, installer_sh};
 use clap::builder::OsStr;
 use flate2::write::GzEncoder;
@@ -388,7 +388,7 @@ pub enum BuildError {
     NpmBuildEror(#[from] NpmBuildError),
 }
 
-pub (crate) fn build(args: Args) -> Result<(), BuildError> {
+pub (crate) fn build(args: BuildCommand) -> Result<(), BuildError> {
     // Get the values of arguments
     let input_dir = args
         .input
