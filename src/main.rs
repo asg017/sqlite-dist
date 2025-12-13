@@ -1,4 +1,5 @@
 mod amalgamation;
+mod cli;
 mod gem;
 mod gh_releases;
 mod installer_sh;
@@ -9,7 +10,8 @@ mod spec;
 mod spm;
 mod sqlpkg;
 
-use clap::{builder::OsStr, value_parser, Arg, ArgMatches, Command};
+use cli::Args;
+use clap::builder::OsStr;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use manifest::write_manifest;
@@ -398,23 +400,18 @@ pub enum BuildError {
     NpmBuildEror(#[from] NpmBuildError),
 }
 
-fn build(matches: ArgMatches) -> Result<(), BuildError> {
+fn build(args: Args) -> Result<(), BuildError> {
     // Get the values of arguments
-    let input_dir = matches
-        .get_one::<PathBuf>("input")
+    let input_dir = args
+        .input
         .ok_or_else(|| BuildError::RequiredArg("input".to_owned()))?;
-    let output_dir = matches
-        .get_one::<PathBuf>("output")
+    let output_dir = args
+        .output
         .ok_or_else(|| BuildError::RequiredArg("output".to_owned()))?;
-    let input_file = matches
-        .get_one::<PathBuf>("file")
-        .ok_or_else(|| BuildError::RequiredArg("file".to_owned()))?;
-    let version = matches
-        .get_one::<String>("version")
-        .ok_or_else(|| BuildError::RequiredArg("version".to_owned()))?;
-    let version = Version::parse(version).unwrap();
+    let input_file = &args.file;
+    let version = Version::parse(&args.version).unwrap();
 
-    std::fs::create_dir_all(output_dir)?;
+    std::fs::create_dir_all(&output_dir)?;
 
     let spec: Spec = match toml::from_str(fs::read_to_string(input_file)?.as_str()) {
         Ok(spec) => spec,
@@ -561,48 +558,14 @@ fn build(matches: ArgMatches) -> Result<(), BuildError> {
     File::create(output_dir.join("install.sh"))?.write_all(
         crate::installer_sh::templates::install_sh(&project, &generated_assets).as_bytes(),
     )?;
-    write_manifest(output_dir, &generated_assets)?;
+    write_manifest(&output_dir, &generated_assets)?;
     Ok(())
 }
 
 fn main() {
-    let matches = Command::new(env!("CARGO_PKG_NAME"))
-        .version(env!("CARGO_PKG_VERSION"))
-        .author("Alex Garcia")
-        .about("Package and distribute pre-compiled SQLite extensions")
-        .arg(
-            Arg::new("input")
-                .long("input")
-                .value_name("INPUT_DIR")
-                .help("Sets the input directory")
-                .value_parser(value_parser!(PathBuf)),
-        )
-        .arg(
-            Arg::new("output")
-                .long("output")
-                .value_name("OUTPUT_DIR")
-                .help("Sets the output directory")
-                .value_parser(value_parser!(PathBuf)),
-        )
-        .arg(
-            Arg::new("version")
-                .long("version")
-                .value_name("VERSION")
-                .help("Set the version ")
-                .required(true),
-        )
-        .arg(
-            Arg::new("file")
-                .value_name("FILE")
-                .help("Sets the input file")
-                .required(true)
-                .index(1)
-                .value_parser(value_parser!(PathBuf)),
-        )
-        .disable_version_flag(true)
-        .get_matches();
+    let args = Args::parse_args();
 
-    match build(matches) {
+    match build(args) {
         Ok(_) => std::process::exit(0),
         Err(error) => {
             eprintln!("Build error: {error}");
