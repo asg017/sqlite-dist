@@ -23,21 +23,13 @@ pub enum Command {
 
 #[derive(Parser, Debug)]
 pub struct BuildCommand {
-    /// Sets the input file
-    #[arg(value_name = "FILE")]
-    pub file: PathBuf,
-
-    /// Sets the input directory
-    #[arg(long, value_name = "INPUT_DIR")]
-    pub input: Option<PathBuf>,
-
-    /// Sets the output directory
-    #[arg(long, value_name = "OUTPUT_DIR")]
-    pub output: Option<PathBuf>,
-
     /// Set the version
     #[arg(long, value_name = "VERSION", required = true)]
     pub set_version: String,
+
+    /// Change to directory before building
+    #[arg(long, value_name = "DIR", short = 'C')]
+    pub chdir: Option<PathBuf>,
 }
 
 #[derive(Parser, Debug)]

@@ -1,5 +1,6 @@
 use crate::cli::BuildCommand;
 use crate::targets::{gh_releases, pip, npm, gem, sqlpkg, spm, amalgamation, installer_sh};
+use anyhow::Error;
 use clap::builder::OsStr;
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -8,6 +9,7 @@ use semver::Version;
 use serde::{Serialize, Serializer};
 use sha2::{Digest, Sha256};
 use crate::spec::Spec;
+use std::env::current_dir;
 use std::{
     fs::{self, File},
     io::{self, Write},
@@ -370,8 +372,6 @@ impl PlatformDirectory {
 #[derive(Error, Debug)]
 pub enum BuildError {
     #[error("`{0}` is a required argument")]
-    RequiredArg(String),
-    #[error("`{0}` is a required argument")]
     InvalidSpec(toml::de::Error),
     #[error("specfile error: `{0}`")]
     SpecError(String),
@@ -385,22 +385,38 @@ pub enum BuildError {
     PipBuildEror(#[from] PipBuildError),
     #[error("Error building an npm package: {0}")]
     NpmBuildEror(#[from] NpmBuildError),
+
+    #[error("{0}")]
+    CatchAll(Error),
 }
 
 pub (crate) fn build(args: BuildCommand) -> Result<(), BuildError> {
+    let base_dir = args.chdir.clone().unwrap_or(current_dir()?);
     // Get the values of arguments
-    let input_dir = args
-        .input
-        .ok_or_else(|| BuildError::RequiredArg("input".to_owned()))?;
-    let output_dir = args
-        .output
-        .ok_or_else(|| BuildError::RequiredArg("output".to_owned()))?;
-    let input_file = &args.file;
+    let input_dir = base_dir.join("dist");
+    let output_dir = base_dir.join(".sqlite-dist");
+    let input_file = base_dir.join("sqlite-dist.toml");
     let version = Version::parse(&args.set_version).unwrap();
+
+    if !input_dir.exists() {
+        return Err(BuildError::CatchAll(
+            anyhow::anyhow!("Input directory '{}' does not exist", input_dir.to_str().unwrap()
+        )));
+    }
+    if output_dir.exists() {
+        return Err(BuildError::CatchAll(
+            anyhow::anyhow!("Output directory '{}' already exists", output_dir.to_str().unwrap()
+        )));
+    }
+    if !input_file.exists() {
+        return Err(BuildError::CatchAll(
+            anyhow::anyhow!("Input file '{}' does not exist", input_file.to_str().unwrap()
+        )));
+    }
 
     std::fs::create_dir_all(&output_dir)?;
 
-    let spec: Spec = match toml::from_str(fs::read_to_string(input_file)?.as_str()) {
+    let spec: Spec = match toml::from_str(fs::read_to_string(&input_file)?.as_str()) {
         Ok(spec) => spec,
         Err(err) => {
             eprintln!("{}", err);
@@ -464,6 +480,10 @@ pub (crate) fn build(args: BuildCommand) -> Result<(), BuildError> {
         spec_directory: input_file.parent().unwrap().to_path_buf(),
         platform_directories,
     };
+
+    let gitignore_path = output_dir.join(".gitignore");
+    
+    File::create(gitignore_path.clone())?.write_all(b"*\n")?;
 
     let mut generated_assets: Vec<GeneratedAsset> = vec![];
     if project.spec.targets.github_releases.is_some() {
