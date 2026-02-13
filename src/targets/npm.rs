@@ -156,7 +156,7 @@ pub(crate) fn write_npm_packages(
                 description: project.spec.package.description.clone(),
                 repository: Repository {
                     repo_type: "git".to_owned(),
-                    url: "https://TODO".to_owned(),
+                    url: project.spec.package.repo.clone(),
                     directory: None,
                 },
                 main: Some("./index.cjs".to_owned()),
@@ -215,7 +215,7 @@ pub(crate) fn write_npm_packages(
         description: project.spec.package.description.clone(),
         repository: Repository {
             repo_type: "git".to_owned(),
-            url: "https://TODO".to_owned(),
+            url: project.spec.package.repo.clone(),
             directory: None,
         },
         main: Some("./index.cjs".to_owned()),
@@ -275,7 +275,7 @@ pub(crate) fn write_npm_packages(
             description: project.spec.package.description.clone(),
             repository: Repository {
                 repo_type: "git".to_owned(),
-                url: "https://TODO".to_owned(),
+                url: project.spec.package.repo.clone(),
                 directory: None,
             },
             main: None,
