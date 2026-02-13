@@ -4,7 +4,7 @@ members = ["cargo:."]
 # Config for 'dist'
 [dist]
 # The preferred dist version to use in CI (Cargo.toml SemVer syntax)
-cargo-dist-version = "0.28.0"
+cargo-dist-version = "0.30.3"
 # The installers to generate for each app
 installers = ["shell"]
 # Target platforms to build apps for (Rust target-triple syntax)
@@ -17,3 +17,9 @@ pr-run-mode = "plan"
 install-path = "CARGO_HOME"
 # Whether to install an updater program
 install-updater = false
+
+[dist.github-custom-runners]
+aarch64-apple-darwin = "macos-latest"
+aarch64-unknown-linux-gnu = "ubuntu-22.04-arm"
+global = "ubuntu-latest"
+x86_64-unknown-linux-gnu = "ubuntu-22.04"
