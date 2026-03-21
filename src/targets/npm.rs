@@ -20,10 +20,14 @@ pub struct ExportTarget {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub require: Option<String>,
     // for ESM, should end in .mjs
-    pub import: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub import: Option<String>,
     // for TypeScript, .d.ts file?
     #[serde(skip_serializing_if = "Option::is_none")]
     pub types: Option<String>,
+    // default export condition, for non-JS files (e.g. native binaries)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -39,7 +43,8 @@ pub struct PackageJson {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub main: Option<String>,
     // ESM file?
-    pub module: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub module: Option<String>,
     // path to .d.ts file
     #[serde(skip_serializing_if = "Option::is_none")]
     pub types: Option<String>,
@@ -159,17 +164,23 @@ pub(crate) fn write_npm_packages(
                     url: project.spec.package.repo.clone(),
                     directory: None,
                 },
-                main: Some("./index.cjs".to_owned()),
-                module: "./index.mjs".to_owned(),
-                types: Some("./index.d.ts".to_owned()),
-                exports: HashMap::from([(
-                    ".".to_owned(),
-                    ExportTarget {
-                        require: Some("./index.cjs".to_owned()),
-                        import: "./index.mjs".to_owned(),
-                        types: Some("./index.d.ts".to_owned()),
-                    },
-                )]),
+                main: None,
+                module: None,
+                types: None,
+                exports: HashMap::from_iter(
+                    platform_dir.loadable_files.iter().map(|f| {
+                        let path = format!("./{}", f.file.name);
+                        (
+                            path.clone(),
+                            ExportTarget {
+                                require: None,
+                                import: None,
+                                types: None,
+                                default: Some(path),
+                            },
+                        )
+                    }),
+                ),
                 files: vec![].into(),
                 keywords: vec![].into(),
                 dependencies: None,
@@ -219,14 +230,15 @@ pub(crate) fn write_npm_packages(
             directory: None,
         },
         main: Some("./index.cjs".to_owned()),
-        module: "./index.mjs".to_owned(),
+        module: Some("./index.mjs".to_owned()),
         types: Some("./index.d.ts".to_owned()),
         exports: HashMap::from([(
             ".".to_owned(),
             ExportTarget {
                 require: Some("./index.cjs".to_owned()),
-                import: "./index.mjs".to_owned(),
+                import: Some("./index.mjs".to_owned()),
                 types: Some("./index.d.ts".to_owned()),
+                default: None,
             },
         )]),
         files: vec![].into(),
@@ -279,14 +291,15 @@ pub(crate) fn write_npm_packages(
                 directory: None,
             },
             main: None,
-            module: "./sqlite3.mjs".to_owned(),
+            module: Some("./sqlite3.mjs".to_owned()),
             types: None,
             exports: HashMap::from([(
                 ".".to_owned(),
                 ExportTarget {
                     require: None,
-                    import: "./sqlite3.mjs".to_owned(),
+                    import: Some("./sqlite3.mjs".to_owned()),
                     types: None,
+                    default: None,
                 },
             )]),
             files: vec![].into(),
@@ -384,7 +397,20 @@ export declare function load(db: Db): void;
 
         let supported_platforms: Vec<Vec<String>> = supported_platforms
             .iter()
-            .map(|(os, cpu)| vec![os.to_string(), cpu.to_string()])
+            .map(|(os, cpu)| {
+                let npm_os = match os {
+                    Os::Macos => "darwin",
+                    Os::Linux => "linux",
+                    Os::Windows => "win32",
+                    _ => unreachable!("Unsupported npm OS {:?}", os),
+                };
+                let npm_cpu = match cpu {
+                    Cpu::X86_64 => "x64",
+                    Cpu::Aarch64 => "arm64",
+                    _ => unreachable!("Unsupported npm CPU {:?}", cpu),
+                };
+                vec![npm_os.to_owned(), npm_cpu.to_owned()]
+            })
             .collect();
         let supported_platforms = serde_json::to_string(&supported_platforms)
             .expect("String values should always serialize as JSON");
@@ -392,18 +418,13 @@ export declare function load(db: Db): void;
         let imports = match format {
             JsFormat::CJS => {
                 r#"
-const { join } = require("node:path");
-const { fileURLToPath } = require("node:url");
 const { arch, platform } = require("node:process");
-const { statSync } = require("node:fs");
 "#
             }
             JsFormat::ESM => {
                 r#"
-import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { arch, platform } from "node:process";
-import { statSync } from "node:fs";
 "#
             }
         };
@@ -412,10 +433,13 @@ import { statSync } from "node:fs";
             JsFormat::CJS => r#"module.exports = {getLoadablePath, load};"#,
             JsFormat::ESM => r#"export {getLoadablePath, load};"#,
         };
-        let current_directory = match format {
-            JsFormat::CJS => r#"__dirname"#,
-            // the "join()" is needed because webpack likes to re-write this sometimes??? unbelievable
-            JsFormat::ESM => r#"fileURLToPath(new URL(join("."), import.meta.url))"#,
+        let resolve_loadable = match format {
+            JsFormat::CJS => {
+                r#"require.resolve(packageName + "/" + ENTRYPOINT_BASE_NAME + "." + extensionSuffix(platform))"#
+            }
+            JsFormat::ESM => {
+                r#"fileURLToPath(import.meta.resolve(packageName + "/" + ENTRYPOINT_BASE_NAME + "." + extensionSuffix(platform)))"#
+            }
         };
 
         format!(
@@ -434,7 +458,7 @@ const extensionNotFoundErrorMessage = packageName => `Loadble extension for ${{B
 
 function validPlatform(platform, arch) {{
   return (
-    supportedPlatforms.find(([p, a]) => platform == p && arch === a) !== null
+    supportedPlatforms.find(([p, a]) => platform === p && arch === a) !== undefined
   );
 }}
 function extensionSuffix(platform) {{
@@ -454,16 +478,7 @@ function getLoadablePath() {{
     );
   }}
   const packageName = platformPackageName(platform, arch);
-  const loadablePath = join(
-    {current_directory},
-    "..",
-    packageName,
-    `${{ENTRYPOINT_BASE_NAME}}.${{extensionSuffix(platform)}}`
-  );
-  if (!statSync(loadablePath, {{ throwIfNoEntry: false }})) {{
-    throw new Error(extensionNotFoundErrorMessage(packageName));
-  }}
-
+  const loadablePath = {resolve_loadable};
   return loadablePath;
 }}
 
