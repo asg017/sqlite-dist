@@ -16,7 +16,13 @@ homepage = "https://alexgarcia.xyz/sqlite-sample"
 repo = "https://github.com/asg017/sqlite-sample"
 description = "A sample SQLite extension."
 authors = ["Alex Garcia"]
+# Optional. Path (relative to this file) to a markdown README used as the long
+# description on registries like PyPI and npm. Defaults to "README.md".
+readme = "README.md"
 ```
+
+The `description`, `homepage`, `authors`, `license`, and `repo` fields, along with
+the `readme` long description, are surfaced as package metadata on PyPI and npm.
 
 
 ## `[targets]`

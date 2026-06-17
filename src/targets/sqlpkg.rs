@@ -29,9 +29,20 @@ pub struct Sqlpkg {
     pub assets: Asset,
 }
 
+/// Extracts the repository owner (the `<owner>` in `…/<owner>/<repo>`) from a
+/// git host URL, so sqlpkg can reference the package as `<owner>/<name>`.
+fn repo_owner(repo: &str) -> Option<String> {
+    repo.trim_end_matches('/')
+        .trim_end_matches(".git")
+        .rsplit('/')
+        .nth(1)
+        .filter(|owner| !owner.is_empty())
+        .map(|owner| owner.to_owned())
+}
+
 pub(crate) fn write_sqlpkg(project: &Project, sqlpkg_dir: &Path) -> Result<Vec<GeneratedAsset>> {
     let sqlpkg = Sqlpkg {
-        owner: project.spec.package.authors.join(", "),
+        owner: repo_owner(&project.spec.package.repo).unwrap_or_default(),
         name: project.spec.package.name.clone(),
         version: project.version.to_string(),
         homepage: project.spec.package.homepage.clone(),

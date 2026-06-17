@@ -10,6 +10,9 @@ pub struct SpecPackage {
     pub homepage: String,
     pub repo: String,
     pub git_tag_format: Option<String>,
+    /// Path (relative to the spec file) to a markdown README used as the long
+    /// description for registries like PyPI and npm. Defaults to "README.md".
+    pub readme: Option<String>,
 }
 
 impl SpecPackage {
