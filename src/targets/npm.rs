@@ -103,6 +103,7 @@ pub(crate) fn write_npm_packages(
 ) -> Result<Vec<GeneratedAsset>, NpmBuildError> {
     let mut assets = vec![];
     let author = project.spec.package.authors.first().unwrap();
+    let readme = project.readme_content();
     let npm_platform_directories: Vec<&PlatformDirectory> = project
         .platform_directories
         .iter()
@@ -197,7 +198,7 @@ pub(crate) fn write_npm_packages(
         .zip(&npm_platform_directories)
         .map(|(pkg, platform_dir)| {
             let mut files = vec![
-                PlatformFile::new("package/README.md", "TODO", None),
+                PlatformFile::new("package/README.md", readme.clone(), None),
                 PlatformFile::new("package/package.json", serde_json::to_string(&pkg)?, None),
             ];
             for loadable_file in &platform_dir.loadable_files {
@@ -260,7 +261,7 @@ pub(crate) fn write_npm_packages(
         .collect::<Vec<(Os, Cpu)>>();
     let pkg_name = project.spec.package.name.clone();
     let top_pkg_targz_files = vec![
-        PlatformFile::new("package/README.md", "TODO", None),
+        PlatformFile::new("package/README.md", readme.clone(), None),
         PlatformFile::new(
             "package/package.json",
             serde_json::to_string(&top_pkg)?,
@@ -311,7 +312,7 @@ pub(crate) fn write_npm_packages(
             cpu: None,
         };
         let wasm_pkg_targz_files = vec![
-            PlatformFile::new("package/README.md", "TODO", None),
+            PlatformFile::new("package/README.md", readme.clone(), None),
             PlatformFile::new(
                 "package/package.json",
                 serde_json::to_string(&wasm_pkg_json)?,

@@ -32,6 +32,27 @@ impl Project {
             self.spec.package.git_tag(&self.version)
         )
     }
+
+    /// Reads the markdown README used as the long description for registries
+    /// (PyPI, npm, …). Resolves `package.readme` relative to the spec file,
+    /// falling back to `README.md`. Returns an empty string when no README is
+    /// found, warning only when an explicitly-configured file is unreadable.
+    pub(crate) fn readme_content(&self) -> String {
+        let configured = self.spec.package.readme.as_deref();
+        let path = self.spec_directory.join(configured.unwrap_or("README.md"));
+        match fs::read_to_string(&path) {
+            Ok(contents) => contents,
+            Err(_) => {
+                if configured.is_some() {
+                    eprintln!(
+                        "Warning: configured readme '{}' could not be read",
+                        path.display()
+                    );
+                }
+                String::new()
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

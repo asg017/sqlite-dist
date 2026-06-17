@@ -15,29 +15,34 @@ mod templates {
     use super::PipPackage;
 
     pub(crate) fn dist_info_metadata(pkg: &PipPackage) -> String {
-        let name = &pkg.package_name;
-        let version = &pkg.package_version;
-        let extra_metadata: String = if pkg.extra_metadata.len() > 1 {
-            let mut s = String::new();
-            for (key, value) in &pkg.extra_metadata {
-                s += format!("{key}: {value}\n").as_str();
-            }
-            s
-        } else {
-            "".to_owned()
-        };
-        format!(
-            "Metadata-Version: 2.1
-Name: {name}
-Version: {version}
-Home-page: https://TODO.com
-Author: TODO
-License: MIT License, Apache License, Version 2.0
-Description-Content-Type: text/markdown
-{extra_metadata}
-
-TODO readme"
-        )
+        let mut metadata = String::new();
+        metadata.push_str("Metadata-Version: 2.1\n");
+        metadata.push_str(&format!("Name: {}\n", pkg.package_name));
+        metadata.push_str(&format!("Version: {}\n", pkg.package_version));
+        if !pkg.summary.is_empty() {
+            metadata.push_str(&format!("Summary: {}\n", pkg.summary));
+        }
+        if !pkg.homepage.is_empty() {
+            metadata.push_str(&format!("Home-page: {}\n", pkg.homepage));
+        }
+        if !pkg.author.is_empty() {
+            metadata.push_str(&format!("Author: {}\n", pkg.author));
+        }
+        if !pkg.license.is_empty() {
+            metadata.push_str(&format!("License: {}\n", pkg.license));
+        }
+        if !pkg.repo.is_empty() {
+            metadata.push_str(&format!("Project-URL: Repository, {}\n", pkg.repo));
+        }
+        metadata.push_str("Description-Content-Type: text/markdown\n");
+        for (key, value) in &pkg.extra_metadata {
+            metadata.push_str(&format!("{key}: {value}\n"));
+        }
+        // A single blank line separates the headers from the long description,
+        // which PyPI renders as the project README.
+        metadata.push('\n');
+        metadata.push_str(&pkg.description_body);
+        metadata
     }
 
     pub(crate) fn dist_info_entrypoints(entrypoints: &Vec<(String, String)>) -> String {
@@ -221,6 +226,15 @@ pub struct PipPackage {
 
     pub entrypoints: Vec<(String, String)>,
     pub extra_metadata: Vec<(String, String)>,
+
+    // Long-form package metadata surfaced on PyPI.
+    pub summary: String,
+    pub homepage: String,
+    pub author: String,
+    pub license: String,
+    pub repo: String,
+    // The markdown README rendered as the PyPI project description.
+    pub description_body: String,
 }
 
 impl PipPackage {
@@ -236,7 +250,24 @@ impl PipPackage {
             written_files: vec![],
             entrypoints: vec![],
             extra_metadata: vec![],
+            summary: String::new(),
+            homepage: String::new(),
+            author: String::new(),
+            license: String::new(),
+            repo: String::new(),
+            description_body: String::new(),
         }
+    }
+
+    /// Populate the package metadata surfaced on PyPI from the project spec,
+    /// using `readme` as the long description rendered on the project page.
+    pub fn set_package_metadata(&mut self, spec: &crate::spec::SpecPackage, readme: &str) {
+        self.summary = spec.description.clone();
+        self.homepage = spec.homepage.clone();
+        self.author = spec.authors.join(", ");
+        self.license = spec.license.clone();
+        self.repo = spec.repo.clone();
+        self.description_body = readme.to_owned();
     }
 
     pub fn add_entrypoint(&mut self, key: &str, value: &str) {
@@ -337,6 +368,7 @@ pub(crate) fn write_base_packages(
     pip_path: &Path,
 ) -> Result<Vec<GeneratedAsset>, PipBuildError> {
     let mut assets = vec![];
+    let readme = project.readme_content();
     for platform_dir in &project.platform_directories {
         // only a subset of platforms are supported in pip
         match (&platform_dir.os, &platform_dir.cpu) {
@@ -350,6 +382,7 @@ pub(crate) fn write_base_packages(
             _ => continue,
         }
         let mut pkg = PipPackage::new(&project.spec.package.name, &project.version);
+        pkg.set_package_metadata(&project.spec.package, &readme);
         assert!(!platform_dir.loadable_files.is_empty());
         let entrypoint = &platform_dir.loadable_files.first().expect("TODO").file_stem;
         let mut init_py = templates::base_init_py(&pkg, entrypoint);
@@ -391,6 +424,7 @@ pub(crate) fn write_datasette(
     let datasette_package_name = format!("datasette-{}", project.spec.package.name);
     let dep_pkg = PipPackage::new(&project.spec.package.name, &project.version);
     let mut pkg = PipPackage::new(datasette_package_name.clone(), &project.version);
+    pkg.set_package_metadata(&project.spec.package, &project.readme_content());
     pkg.write_library_file(
         "__init__.py",
         templates::datasette_init_py(&dep_pkg).as_bytes(),
@@ -427,6 +461,7 @@ pub(crate) fn write_sqlite_utils(
     let sqlite_utils_name = format!("sqlite-utils-{}", project.spec.package.name);
     let dep_pkg = PipPackage::new(&project.spec.package.name, &project.version);
     let mut pkg = PipPackage::new(sqlite_utils_name.clone(), &project.version);
+    pkg.set_package_metadata(&project.spec.package, &project.readme_content());
     pkg.write_library_file(
         "__init__.py",
         templates::sqlite_utils_init_py(&dep_pkg).as_bytes(),
