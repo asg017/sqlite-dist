@@ -197,7 +197,7 @@ impl Gem {
             vec![project.spec.package.license.clone()],
             &project.spec.package.description,
             &project.spec.package.description,
-            "https://github.com/TODO",
+            &project.spec.package.homepage,
         );
         let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
         encoder.write_all(metadata.as_bytes())?;
