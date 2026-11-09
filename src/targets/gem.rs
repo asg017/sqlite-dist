@@ -60,6 +60,9 @@ fn ruby_platform(os: &Os, cpu: &Cpu) -> String {
     };
     let cpu = match cpu {
         Cpu::X86_64 => "x86_64",
+        // RubyGems calls 64-bit ARM "arm64" on macOS but "aarch64" on Linux:
+        // an arm64-linux gem never matches an aarch64-linux Ruby.
+        Cpu::Aarch64 if os == "linux" => "aarch64",
         Cpu::Aarch64 => "arm64",
         _ => unreachable!(
             "Invalid gem CPU {:?}  provided, should have been filtered out",
@@ -304,5 +307,30 @@ end
 
 "#
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The platform the gemspec declares, which RubyGems matches against
+    /// `Gem::Platform.local` when Bundler picks a gem.
+    fn gemspec_platform(os: &Os, cpu: &Cpu) -> String {
+        let gemspec = gem_metadata_template(
+            os, cpu, "sqlite-vec", "0.1.0", vec![], "", vec![], vec![], "", "", "",
+        );
+        gemspec
+            .lines()
+            .find_map(|line| line.strip_prefix("platform: "))
+            .unwrap()
+            .to_owned()
+    }
+
+    #[test]
+    fn arm_gems_declare_the_platform_rubygems_reports() {
+        // `ruby -e 'puts Gem::Platform.local'` on each machine.
+        assert_eq!(gemspec_platform(&Os::Linux, &Cpu::Aarch64), "aarch64-linux");
+        assert_eq!(gemspec_platform(&Os::Macos, &Cpu::Aarch64), "arm64-darwin");
     }
 }
